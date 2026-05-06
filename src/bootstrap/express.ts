@@ -21,10 +21,8 @@ import { backendStateService } from "../modules/redis/service/backend-state.serv
 export async function createApp() {
   const app = express();
 
-  // Initialize Redis (non-blocking, logs warnings if fails)
-  redisService
-    .connect()
-    .catch((err) => logger.warn("Redis initialization failed", { error: err.message }));
+  // Connect to Redis before registering controllers
+  await redisService.connect();
 
   // Security and parsing middleware
   app.use(cors(corsConfig));

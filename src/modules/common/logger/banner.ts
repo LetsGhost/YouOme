@@ -6,7 +6,7 @@ import { logger } from "./logger";
 
 // Prints an ASCII banner with version and environment info at startup.
 export function printStartupBanner(port: number) {
-  const text = "AthletePT-Backend";
+  const text = env.APP_NAME;
 
   const banner = figlet.textSync(text, {
     font: "Standard",
@@ -18,7 +18,7 @@ export function printStartupBanner(port: number) {
   const divider = "-".repeat(65);
 
   const meta = [
-    `:: AthletePT Backend :: v${packageJson.version} ::`,
+    `:: ${env.APP_NAME} :: v${packageJson.version} ::`,
     `Env: ${env.NODE_ENV}`,
     `Port: ${port}`,
     `Node: ${process.version}`,

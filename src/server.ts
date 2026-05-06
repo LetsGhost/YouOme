@@ -5,14 +5,25 @@ import { logger } from "./modules/common/logger/logger";
 import { printStartupBanner } from "./modules/common/logger/banner";
 
 (async () => {
-  await connectDatabase(env.MONGO_URI);
+  try {
+    // Print banner first
+    printStartupBanner(env.PORT);
 
-  printStartupBanner(env.PORT);
+    // Connect to MongoDB
+    await connectDatabase(env.MONGO_URI);
 
-  const app = await createApp();
+    // Create app and connect Redis
+    const app = await createApp();
 
-  app.listen(env.PORT, () => {
-    logger.info(`Server running on port ${env.PORT}`);
-    logger.info(`API Documentation available at http://localhost:${env.PORT}/api-docs`);
-  });
+    // Start server
+    app.listen(env.PORT, () => {
+      logger.info(`Server running on port ${env.PORT}`);
+      logger.info(`API Documentation available at http://localhost:${env.PORT}/api-docs`);
+    });
+  } catch (error) {
+    logger.error("Failed to start server", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    process.exit(1);
+  }
 })();

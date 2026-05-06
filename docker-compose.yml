@@ -1,21 +1,46 @@
+# This is the docker compose for development and testing purposes.
 services:
-  api:
-    image: ${IMAGE_TAG}
-    container_name: athletept3-api
-    ports:
-      - "3000:3000"
-    env_file:
-      - .env
-    restart: unless-stopped
-    depends_on:
-      - mongo
-
   mongo:
     image: mongo:7
-    container_name: athletept3-mongo
+    container_name: youome-mongo
     restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-admin}
+      MONGO_INITDB_AUTH_SOURCE: ${MONGO_AUTH_SOURCE:-admin}
     volumes:
       - mongo-data:/data/db
+    networks:
+      - youome-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: youome-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-your_password}
+    volumes:
+      - redis-data:/data
+    networks:
+      - youome-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   mongo-data:
+  redis-data:
+
+networks:
+  youome-network:
+    driver: bridge
