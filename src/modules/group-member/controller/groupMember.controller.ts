@@ -4,6 +4,7 @@ import { BaseController } from "../../common/base/base.controller";
 import { groupMemberService } from "../service/groupMember.service";
 import { createGroupMemberSchema } from "../schema/groupMember.schema";
 import { authenticate, AuthRequest } from "../../../middleware/auth.middleware";
+import { GroupAccessRequest, groupAccessMiddleware } from "../../../middleware/group-access.middleware";
 import { groupAccessService } from "../../group/service/group-access.service";
 
 /**
@@ -65,21 +66,47 @@ class GroupMemberController extends BaseController {
      *       404:
      *         description: Group member not found
      */
-    this.router.get("/:id", authenticate, this.getById);
+    this.router.get("/:id", authenticate, groupAccessMiddleware as any, this.getById);
   }
 
-  private async create(req: AuthRequest, res: Response) {
-    const dto = createGroupMemberSchema.parse(req.body);
-    await groupAccessService.assertOwnerOrAdmin(dto.groupId, req.user!.id);
-    const member = await groupMemberService.addMember(dto.groupId, dto.userId, dto.role, req.user!.id);
-    res.status(201).json(member);
+  private async create(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const dto = createGroupMemberSchema.parse(req.body);
+      
+      // Check access for create (groupId in body, not params)
+      try {
+        await groupAccessService.assertOwnerOrAdmin(dto.groupId, req.user!.id);
+      } catch (error) {
+        res.status(403).json({ error: "Not authorized to add members to this group" });
+        return;
+      }
+      
+      const member = await groupMemberService.addMember(
+        dto.groupId,
+        dto.userId,
+        dto.role,
+        req.user!.id
+      );
+      res.status(201).json(member);
+    } catch (error) {
+      throw error;
+    }
   }
 
-  private async getById(req: AuthRequest, res: Response) {
-    const member = await groupMemberService.findById(req.params.id);
-    if (!member) throw new Error("Member not found");
-    await groupAccessService.assertOwnerOrAdmin(member.groupId, req.user!.id);
-    res.json(member);
+  private async getById(req: GroupAccessRequest, res: Response): Promise<void> {
+    try {
+      const member = await groupMemberService.findById(req.params.id);
+      if (!member) throw new Error("Member not found");
+      
+      if (!req.groupAccess?.isOwnerOrAdmin) {
+        res.status(403).json({ error: "Not authorized to view this member" });
+        return;
+      }
+      
+      res.json(member);
+    } catch (error) {
+      throw error;
+    }
   }
 }
 

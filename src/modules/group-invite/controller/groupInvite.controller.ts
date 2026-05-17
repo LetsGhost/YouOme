@@ -4,6 +4,7 @@ import { BaseController } from "../../common/base/base.controller";
 import { groupInviteService } from "../service/groupInvite.service";
 import { createGroupInviteSchema } from "../schema/groupInvite.schema";
 import { authenticate, AuthRequest } from "../../../middleware/auth.middleware";
+import { GroupAccessRequest, groupAccessMiddleware } from "../../../middleware/group-access.middleware";
 import { groupAccessService } from "../../group/service/group-access.service";
 
 /**
@@ -65,21 +66,48 @@ class GroupInviteController extends BaseController {
      *       404:
      *         description: Invite not found
      */
-    this.router.get("/:id", authenticate, this.getById);
+    this.router.get("/:id", authenticate, groupAccessMiddleware as any, this.getById);
   }
 
-  private async create(req: AuthRequest, res: Response) {
-    const dto = createGroupInviteSchema.parse(req.body);
-    await groupAccessService.assertOwnerOrAdmin(dto.groupId, req.user!.id);
-    const invite = await groupInviteService.createInvite(dto.groupId, req.user!.id, dto.invitedUserId, dto.message, dto.expiresAt ? new Date(dto.expiresAt) : undefined);
-    res.status(201).json(invite);
+  private async create(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const dto = createGroupInviteSchema.parse(req.body);
+      
+      // Manually check access for create (groupId in body, not params)
+      try {
+        await groupAccessService.assertOwnerOrAdmin(dto.groupId, req.user!.id);
+      } catch (error) {
+        res.status(403).json({ error: "Not authorized to invite for this group" });
+        return;
+      }
+      
+      const invite = await groupInviteService.createInvite(
+        dto.groupId,
+        req.user!.id,
+        dto.invitedUserId,
+        dto.message,
+        dto.expiresAt ? new Date(dto.expiresAt) : undefined
+      );
+      res.status(201).json(invite);
+    } catch (error) {
+      throw error;
+    }
   }
 
-  private async getById(req: AuthRequest, res: Response) {
-    const invite = await groupInviteService.findById(req.params.id);
-    if (!invite) throw new Error("Invite not found");
-    await groupAccessService.assertOwnerOrAdmin(invite.groupId, req.user!.id);
-    res.json(invite);
+  private async getById(req: GroupAccessRequest, res: Response): Promise<void> {
+    try {
+      const invite = await groupInviteService.findById(req.params.id);
+      if (!invite) throw new Error("Invite not found");
+      
+      if (!req.groupAccess?.isOwnerOrAdmin) {
+        res.status(403).json({ error: "Not authorized to view this invite" });
+        return;
+      }
+      
+      res.json(invite);
+    } catch (error) {
+      throw error;
+    }
   }
 }
 

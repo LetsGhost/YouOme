@@ -4,6 +4,7 @@ import { BaseController } from "../../common/base/base.controller";
 import { groupPolicyService } from "../service/groupPolicy.service";
 import { createGroupPolicySchema } from "../schema/groupPolicy.schema";
 import { authenticate, AuthRequest } from "../../../middleware/auth.middleware";
+import { GroupAccessRequest, groupAccessMiddleware } from "../../../middleware/group-access.middleware";
 import { groupAccessService } from "../../group/service/group-access.service";
 
 /**
@@ -65,21 +66,42 @@ class GroupPolicyController extends BaseController {
      *       404:
      *         description: Group policy not found
      */
-    this.router.get("/:id", authenticate, this.getById);
+    this.router.get("/:id", authenticate, groupAccessMiddleware as any, this.getById);
   }
 
-  private async create(req: AuthRequest, res: Response) {
-    const dto = createGroupPolicySchema.parse(req.body);
-    await groupAccessService.assertOwnerOrAdmin(dto.groupId, req.user!.id);
-    const policy = await groupPolicyService.createPolicy(dto.groupId, dto as any);
-    res.status(201).json(policy);
+  private async create(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const dto = createGroupPolicySchema.parse(req.body);
+      
+      // Check access for create (groupId in body, not params)
+      try {
+        await groupAccessService.assertOwnerOrAdmin(dto.groupId, req.user!.id);
+      } catch (error) {
+        res.status(403).json({ error: "Not authorized to create policies for this group" });
+        return;
+      }
+      
+      const policy = await groupPolicyService.createPolicy(dto.groupId, dto as any);
+      res.status(201).json(policy);
+    } catch (error) {
+      throw error;
+    }
   }
 
-  private async getById(req: AuthRequest, res: Response) {
-    const policy = await groupPolicyService.findById(req.params.id);
-    if (!policy) throw new Error("Policy not found");
-    await groupAccessService.assertOwnerOrAdmin(policy.groupId, req.user!.id);
-    res.json(policy);
+  private async getById(req: GroupAccessRequest, res: Response): Promise<void> {
+    try {
+      const policy = await groupPolicyService.findById(req.params.id);
+      if (!policy) throw new Error("Policy not found");
+      
+      if (!req.groupAccess?.isOwnerOrAdmin) {
+        res.status(403).json({ error: "Not authorized to view this policy" });
+        return;
+      }
+      
+      res.json(policy);
+    } catch (error) {
+      throw error;
+    }
   }
 }
 

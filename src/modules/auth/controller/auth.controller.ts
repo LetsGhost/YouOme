@@ -7,7 +7,8 @@ import {
   refreshTokenSchema,
   registerSchema,
 } from "../schema/auth.schema";
-import { userService } from "../../user/service/user.service";
+import { eventBus } from "../../common/messaging/event-bus";
+import { UserRegistrationRequestedEvent } from "../../user/events/user-registration-requested.event";
 import { authenticate, AuthRequest } from "../../../middleware/auth.middleware";
 
 /**
@@ -28,7 +29,7 @@ class AuthController extends BaseController {
   protected routes(): void {
     /**
      * @openapi
-     * /api/authentications/login:
+     * /api/auth/login:
      *   post:
      *     summary: Login user
      *     tags: [Auth]
@@ -48,7 +49,7 @@ class AuthController extends BaseController {
 
     /**
      * @openapi
-      * /api/authentications/register:
+      * /api/auth/register:
      *   post:
      *     summary: Register a new user (no auto-login)
      *     tags: [Auth]
@@ -68,7 +69,7 @@ class AuthController extends BaseController {
 
     /**
      * @openapi
-      * /api/authentications/refresh:
+      * /api/auth/refresh:
      *   post:
      *     summary: Refresh access token
      *     tags: [Auth]
@@ -88,7 +89,7 @@ class AuthController extends BaseController {
 
     /**
      * @openapi
-      * /api/authentications/logout:
+      * /api/auth/logout:
      *   post:
      *     summary: Logout user
      *     tags: [Auth]
@@ -104,7 +105,7 @@ class AuthController extends BaseController {
 
     /**
      * @openapi
-      * /api/authentications/me:
+      * /api/auth/me:
      *   get:
      *     summary: Get current user
      *     tags: [Auth]
@@ -148,14 +149,18 @@ class AuthController extends BaseController {
 
   private async register(req: Request, res: Response) {
     const dto = registerSchema.parse(req.body);
-    // Change it to an event that gets fired, the user module then acts on that event
-    const user = await userService.createUser(dto.email, dto.password, dto.name);
+    
+    // Publish event - user module will handle user creation
+    const event = new UserRegistrationRequestedEvent(dto.email, {
+      email: dto.email,
+      password: dto.password,
+      name: dto.name,
+    });
+    await eventBus.publish(event);
 
     res.status(201).json({
-      id: user._id.toString(),
-      email: user.email,
-      name: user.name,
-      createdAt: user.createdAt,
+      message: "Registration request received. User will be created shortly.",
+      email: dto.email,
     });
   }
 }

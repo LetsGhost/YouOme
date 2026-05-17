@@ -34,7 +34,7 @@ export async function registerControllers(app: Express) {
       const instance = Object.values(controller)[0] as { router?: Router } | undefined;
 
       if (instance?.router) {
-        const basePath = `/api/${moduleName}s`;
+        const basePath = moduleName === "auth" ? "/api/auth" : `/api/${moduleName}s`;
         app.use(basePath, instance.router);
 
         // Log registered endpoints

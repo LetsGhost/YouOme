@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import React from "react";
 
 import { env } from "../../../config/env"
 import { MailPayload } from "../types/mailPayload.type";
@@ -53,7 +54,7 @@ export class MailService {
         return this.sendMail({
             to: input.to,
             subject: "E-Mail verify",
-            html: await pretty(await render())
+            html: await pretty(await render(React.createElement("div", {}, "Email Verification")))
         })
     }
 }
