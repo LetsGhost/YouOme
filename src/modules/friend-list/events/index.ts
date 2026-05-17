@@ -1,0 +1,1 @@
+export { FriendAddedHandler, friendAddedHandler } from "./friend-added.handler";

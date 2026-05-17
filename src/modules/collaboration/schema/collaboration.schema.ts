@@ -38,4 +38,10 @@ export const createCollaborationSchema = z.object({
   role: z.string().optional(),
 });
 
+export const createCollaborationByEmailSchema = z.object({
+  collaboratorEmail: z.email(),
+  role: z.string().optional(),
+});
+
 export type CreateCollaborationDTO = z.infer<typeof createCollaborationSchema>;
+export type CreateCollaborationByEmailDTO = z.infer<typeof createCollaborationByEmailSchema>;

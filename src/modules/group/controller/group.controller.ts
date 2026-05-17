@@ -4,6 +4,7 @@ import { BaseController } from "../../common/base/base.controller";
 import { authenticate, AuthRequest } from "../../../middleware/auth.middleware";
 import { groupService } from "../service/group.service";
 import { createGroupSchema } from "../schema/group.schema";
+import mongoose from "mongoose";
 import { groupAccessService } from "../service/group-access.service";
 
 /**
@@ -97,7 +98,13 @@ class GroupController extends BaseController {
   }
 
   private async getById(req: AuthRequest, res: Response) {
-    await groupAccessService.assertMember(req.params.id, req.user!.id);
+    const groupId = req.params.id;
+
+    if (!groupId || groupId === "undefined" || !mongoose.Types.ObjectId.isValid(groupId)) {
+      throw new Error("Invalid group ID format");
+    }
+
+    await groupAccessService.assertMember(groupId, req.user!.id);
     const group = await groupService.findById(req.params.id);
     if (!group) {
       throw new Error("Group not found");

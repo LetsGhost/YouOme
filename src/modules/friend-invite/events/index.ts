@@ -1,0 +1,1 @@
+export { FriendAddedEvent } from "./friend-added.event";

@@ -11,6 +11,10 @@ export class UserService extends BaseService<UserEntity> {
     super(UserModel);
   }
 
+  async findByEmail(email: string) {
+    return this.model.findOne({ email });
+  }
+
   async createUser(email: string, password: string, name?: string) {
     if (await this.model.exists({ email })) {
       throw new Error("Email already exists");

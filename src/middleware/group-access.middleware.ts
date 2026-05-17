@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import mongoose from "mongoose";
 import { groupAccessService } from "../modules/group/service/group-access.service";
 import { logger } from "../modules/common/logger/logger";
 import { AuthRequest } from "./auth.middleware";
@@ -37,8 +38,13 @@ export async function groupAccessMiddleware(
       return next();
     }
 
-    // Validate groupId format (basic check)
-    if (typeof groupId !== "string" || groupId.length < 1) {
+    // Reject literal 'undefined' or other invalid values early
+    if (groupId === "undefined" || typeof groupId !== "string" || groupId.length < 1) {
+      return next(new Error("Invalid group ID format"));
+    }
+
+    // Validate ObjectId format to avoid Mongoose CastErrors
+    if (!mongoose.Types.ObjectId.isValid(groupId)) {
       return next(new Error("Invalid group ID format"));
     }
 
