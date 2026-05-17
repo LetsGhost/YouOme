@@ -5,7 +5,9 @@ import { authService } from "../service/auth.service";
 import {
   loginSchema,
   refreshTokenSchema,
+  registerSchema,
 } from "../schema/auth.schema";
+import { userService } from "../../user/service/user.service";
 import { authenticate, AuthRequest } from "../../../middleware/auth.middleware";
 
 /**
@@ -26,7 +28,7 @@ class AuthController extends BaseController {
   protected routes(): void {
     /**
      * @openapi
-     * /api/auth/login:
+     * /api/authentications/login:
      *   post:
      *     summary: Login user
      *     tags: [Auth]
@@ -46,7 +48,27 @@ class AuthController extends BaseController {
 
     /**
      * @openapi
-     * /api/auth/refresh:
+      * /api/authentications/register:
+     *   post:
+     *     summary: Register a new user (no auto-login)
+     *     tags: [Auth]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/CreateUserDTO'
+     *     responses:
+     *       201:
+     *         description: User created
+     *       400:
+     *         description: Bad request
+     */
+    this.router.post("/register", this.register);
+
+    /**
+     * @openapi
+      * /api/authentications/refresh:
      *   post:
      *     summary: Refresh access token
      *     tags: [Auth]
@@ -66,7 +88,7 @@ class AuthController extends BaseController {
 
     /**
      * @openapi
-     * /api/auth/logout:
+      * /api/authentications/logout:
      *   post:
      *     summary: Logout user
      *     tags: [Auth]
@@ -82,7 +104,7 @@ class AuthController extends BaseController {
 
     /**
      * @openapi
-     * /api/auth/me:
+      * /api/authentications/me:
      *   get:
      *     summary: Get current user
      *     tags: [Auth]
@@ -122,6 +144,19 @@ class AuthController extends BaseController {
     const user = await authService.getCurrentUser(userId);
 
     res.json(user);
+  }
+
+  private async register(req: Request, res: Response) {
+    const dto = registerSchema.parse(req.body);
+    // Change it to an event that gets fired, the user module then acts on that event
+    const user = await userService.createUser(dto.email, dto.password, dto.name);
+
+    res.status(201).json({
+      id: user._id.toString(),
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt,
+    });
   }
 }
 

@@ -26,4 +26,10 @@ export class ExpenseEntity extends BaseModel {
 
   @prop()
   expenseDate?: Date;
+
+  @prop({ default: "pending_confirmations" })
+  status!: string;
+
+  @prop()
+  settledAt?: Date;
 }

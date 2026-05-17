@@ -5,6 +5,12 @@ import { p2pThreadService } from "../service/p2pThread.service";
 import { createP2PThreadSchema } from "../schema/p2pThread.schema";
 import { authenticate } from "../../../middleware/auth.middleware";
 
+/**
+ * @openapi
+ * tags:
+ *   name: P2P Threads
+ *   description: Peer-to-peer thread endpoints
+ */
 class P2PThreadController extends BaseController {
   constructor() {
     super();
@@ -13,7 +19,51 @@ class P2PThreadController extends BaseController {
   }
 
   protected routes(): void {
+    /**
+     * @openapi
+     * /api/p2p-threads:
+     *   post:
+     *     summary: Create a P2P thread
+     *     tags: [P2P Threads]
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/CreateP2PThreadDTO'
+     *     responses:
+     *       201:
+     *         description: P2P thread created
+     *       401:
+     *         description: Unauthorized
+     */
     this.router.post("/", authenticate, this.create);
+
+    /**
+     * @openapi
+     * /api/p2p-threads/{id}:
+     *   get:
+     *     summary: Get P2P thread by ID
+     *     tags: [P2P Threads]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: P2P thread ID
+     *     responses:
+     *       200:
+     *         description: P2P thread found
+     *       401:
+     *         description: Unauthorized
+     *       404:
+     *         description: Thread not found
+     */
     this.router.get("/:id", authenticate, this.getById);
   }
 

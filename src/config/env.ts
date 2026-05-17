@@ -8,6 +8,7 @@ export const env = {
   JWT_SECRET: process.env.JWT_SECRET!,
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET!,
   BYPASS_AUTH: process.env.BYPASS_AUTH || "false",
+  SYSTEM_ADMIN_EMAILS: process.env.SYSTEM_ADMIN_EMAILS || process.env.SYSTEM_ADMIN_EMAIL || "",
 
   MONGO_USER: process.env.MONGO_USER,
   MONGO_PASSWORD: process.env.MONGO_PASSWORD,
@@ -21,4 +22,11 @@ export const env = {
 
   // CORS
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
+
+  // EMAIL
+  RESEND_API_KEY: process.env.RESEND_API_KEY!,
+  EMAIL_FROM: process.env.EMAIL_FROM!,
+  EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO!,
+  EMAIL_TOKEN_SECRET: process.env.EMAIL_TOKEN_SECRET!,
+  EMAIL_TOKEN_EXPIRES_IN: process.env.EMAIL_TOKEN_EXPIRES_IN || "24h",
 };

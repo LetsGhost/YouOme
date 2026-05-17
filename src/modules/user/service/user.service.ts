@@ -11,14 +11,17 @@ export class UserService extends BaseService<UserEntity> {
     super(UserModel);
   }
 
-  async createUser(email: string, password: string) {
+  async createUser(email: string, password: string, name?: string) {
     if (await this.model.exists({ email })) {
       throw new Error("Email already exists");
     }
 
+    const displayName = name && name.trim().length > 0 ? name.trim() : email.split("@")[0];
+
     const user = await this.create({
       email,
       password: await bcrypt.hash(password, 10),
+      name: displayName,
     });
 
     // Emit domain event

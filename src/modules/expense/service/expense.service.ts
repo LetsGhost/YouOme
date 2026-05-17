@@ -24,6 +24,7 @@ export class ExpenseService extends BaseService<ExpenseEntity> {
       paidByUserId: options.paidByUserId,
       splitType: options.splitType,
       note: options.note,
+      status: "pending_confirmations",
     });
 
     const event = new ExpenseCreatedEvent(expense._id.toString(), {

@@ -1,4 +1,4 @@
-import cron from "node-cron";
+import cron, { ScheduledTask } from "node-cron";
 import cronParser from "cron-parser";
 
 import { logger } from "../logger/logger";
@@ -11,7 +11,7 @@ export interface SchedulerConfig {
 
 export class JobScheduler {
   private jobs: Map<string, ScheduledJob> = new Map();
-  private tasks: Map<string, cron.ScheduledTask> = new Map();
+  private tasks: Map<string, ScheduledTask> = new Map();
   private runningJobs: Set<string> = new Set();
   private config: Required<SchedulerConfig>;
 

@@ -14,4 +14,10 @@ export class ExpenseParticipantEntity extends BaseModel {
 
   @prop({ default: 0 })
   sharePercent!: number;
+
+  @prop({ default: "pending" })
+  status!: string;
+
+  @prop()
+  paidAt?: Date;
 }

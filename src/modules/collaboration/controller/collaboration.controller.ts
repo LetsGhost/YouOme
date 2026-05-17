@@ -5,6 +5,12 @@ import { collaborationService } from "../service/collaboration.service";
 import { createCollaborationSchema } from "../schema/collaboration.schema";
 import { authenticate } from "../../../middleware/auth.middleware";
 
+/**
+ * @openapi
+ * tags:
+ *   name: Collaborations
+ *   description: Collaboration management endpoints
+ */
 class CollaborationController extends BaseController {
   constructor() {
     super();
@@ -13,7 +19,59 @@ class CollaborationController extends BaseController {
   }
 
   protected routes(): void {
+    /**
+     * @openapi
+     * /api/collaborations:
+     *   post:
+     *     summary: Create a collaboration
+     *     tags: [Collaborations]
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/CreateCollaborationDTO'
+     *     responses:
+     *       201:
+     *         description: Collaboration created
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Collaboration'
+     *       401:
+     *         description: Unauthorized
+     */
     this.router.post("/", authenticate, this.create);
+
+    /**
+     * @openapi
+     * /api/collaborations/{id}:
+     *   get:
+     *     summary: Get collaboration by ID
+     *     tags: [Collaborations]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Collaboration ID
+     *     responses:
+     *       200:
+     *         description: Collaboration found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Collaboration'
+     *       401:
+     *         description: Unauthorized
+     *       404:
+     *         description: Collaboration not found
+     */
     this.router.get("/:id", authenticate, this.getById);
   }
 
