@@ -7,11 +7,12 @@ import { z } from "zod";
  *     CreateFriendInviteDTO:
  *       type: object
  *       required:
- *         - toUserId
+ *         - toUserEmail
  *       properties:
- *         toUserId:
+ *         toUserEmail:
  *           type: string
- *           example: 507f1f77bcf86cd799439012
+ *           format: email
+ *           example: friend@example.com
  *     RespondToFriendInviteDTO:
  *       type: object
  *       required:
@@ -43,7 +44,5 @@ import { z } from "zod";
  *           format: date-time
  */
 export const createFriendInviteSchema = z.object({
-    fromUserId: z.string().min(1),
-    toUserId: z.string().min(1),
-    status: z.enum(["pending", "accepted", "rejected"]).default("pending"),
+    toUserEmail: z.string().email(),
 });

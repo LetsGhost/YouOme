@@ -3,21 +3,29 @@ import { eventBus } from "../../common/messaging";
 import { FriendInviteEntity } from "../entity/friend-invite.entity";
 import { FriendAddedEvent } from "../events/friend-added.event";
 import { FriendInviteModel } from "../model/friend-invite.model";
+import { userService } from "../../user/service/user.service";
+import { notificationService } from "../../notification/service/notification.service";
 
 export class FriendService extends BaseService<FriendInviteEntity> {
     constructor() {
         super(FriendInviteModel);
     } 
 
-    async sendInvite(fromUserId: string, toUserId: string) {
-        if (fromUserId === toUserId) {
+    async sendInvite(fromUserId: string, toUserEmail: string) {
+        const toUser = await userService.findByEmail(toUserEmail.trim());
+
+        if (!toUser) {
+            throw new Error("No user found with that email");
+        }
+
+        if (fromUserId === toUser._id.toString()) {
             throw new Error("Cannot send friend invite to yourself");
         }
 
         const existingInvite = await this.model.findOne({
             $or: [
-                { fromUserId, toUserId },
-                { fromUserId: toUserId, toUserId: fromUserId }
+                { fromUserId, toUserId: toUser._id.toString() },
+                { fromUserId: toUser._id.toString(), toUserId: fromUserId }
             ]
         });
 
@@ -30,7 +38,17 @@ export class FriendService extends BaseService<FriendInviteEntity> {
             }
         }
 
-        return this.create({ fromUserId, toUserId });
+        const invite = await this.create({ fromUserId, toUserId: toUser._id.toString() });
+        const sender = await userService.findById(fromUserId);
+
+        await notificationService.createNotification(toUser._id.toString(), "friend.request", {
+            inviteId: invite._id.toString(),
+            fromUserId,
+            fromUserEmail: sender?.email ?? "",
+            fromUserName: sender?.name ?? sender?.email ?? "Someone",
+        });
+
+        return invite;
     }
 
     async respondToInvite(inviteId: string, userId: string, accept: boolean) {
@@ -45,15 +63,17 @@ export class FriendService extends BaseService<FriendInviteEntity> {
         }
 
         invite.status = accept ? "accepted" : "rejected";
+        await invite.save();
 
-        // Publishes the event for the Friends list so the user can be added to the friend list if accepted
-        const event = new FriendAddedEvent(userId, { 
-            userId: invite.fromUserId, 
-            friendUserId: invite.toUserId 
-        });
-        await eventBus.publish(event);
+        if (accept) {
+            const event = new FriendAddedEvent(invite.fromUserId, {
+                userId: invite.fromUserId,
+                friendUserId: invite.toUserId,
+            });
+            await eventBus.publish(event);
+        }
 
-        return invite.save();
+        return invite;
       }
 }
 

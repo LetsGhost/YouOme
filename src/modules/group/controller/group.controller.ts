@@ -21,6 +21,14 @@ class GroupController extends BaseController {
     this.list = this.list.bind(this);
   }
 
+  private serializeGroup(group: any) {
+    const plainGroup = typeof group?.toObject === "function" ? group.toObject() : { ...group };
+    return {
+      ...plainGroup,
+      id: plainGroup._id?.toString?.() ?? plainGroup.id,
+    };
+  }
+
   protected routes(): void {
     /**
      * @openapi
@@ -89,12 +97,12 @@ class GroupController extends BaseController {
   private async create(req: AuthRequest, res: Response) {
     const dto = createGroupSchema.parse(req.body);
     const group = await groupService.createGroup(dto.name, req.user!.id, dto.baseCurrency);
-    res.status(201).json(group);
+    res.status(201).json(this.serializeGroup(group));
   }
 
   private async list(req: AuthRequest, res: Response) {
     const groups = await groupService.findAccessibleGroups(req.user!.id);
-    res.json(groups);
+    res.json(groups.map((group) => this.serializeGroup(group)));
   }
 
   private async getById(req: AuthRequest, res: Response) {
@@ -110,7 +118,7 @@ class GroupController extends BaseController {
       throw new Error("Group not found");
     }
 
-    res.json(group);
+    res.json(this.serializeGroup(group));
   }
 }
 

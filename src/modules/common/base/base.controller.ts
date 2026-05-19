@@ -6,6 +6,8 @@ export abstract class BaseController {
   protected abstract routes(): void;
 
   constructor() {
-    this.routes();
+    // Defer calling routes so subclasses can finish construction
+    // (e.g., bind their methods) before routes are registered.
+    setImmediate(() => this.routes());
   }
 }

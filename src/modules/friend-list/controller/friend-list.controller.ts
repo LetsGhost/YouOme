@@ -41,6 +41,7 @@ class FriendListController extends BaseController {
      *         description: Unauthorized
      */
     this.router.get("/", authenticate, this.getFriendList);
+    this.router.get("/summary", authenticate, this.getFriendSummaries);
 
     /**
      * @openapi
@@ -164,6 +165,16 @@ class FriendListController extends BaseController {
 
     const friendList = await friendListService.getOrCreateFriendList(userId);
     res.json(friendList);
+  }
+
+  private async getFriendSummaries(req: AuthRequest, res: Response): Promise<void> {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
+    const friends = await friendListService.getFriendSummaries(userId);
+    res.json(friends);
   }
 
   private async addFriend(req: AuthRequest, res: Response): Promise<void> {

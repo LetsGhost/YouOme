@@ -4,6 +4,7 @@ import { BaseService } from "../../common/base/base.service";
 import { FriendListEntity, FriendListEntryEntity } from "../entity/friend-list.entity";
 import { FriendListModel } from "../model/friend-list.model";
 import { logger } from "../../common/logger/logger";
+import { userService } from "../../user/service/user.service";
 
 export class FriendListService extends BaseService<FriendListEntity> {
   constructor() {
@@ -24,6 +25,36 @@ export class FriendListService extends BaseService<FriendListEntity> {
     }
 
     return friendList;
+  }
+
+  async getFriendSummaries(userId: string) {
+    const friendList = await this.getOrCreateFriendList(userId);
+    const entries = friendList.friendUserIds ?? [];
+
+    const friends = await Promise.all(
+      entries.map(async (entry) => {
+        const friendUserId = entry.friendUserId?.toString();
+
+        if (!friendUserId) {
+          return null;
+        }
+
+        const friendUser = await userService.findById(friendUserId);
+
+        if (!friendUser) {
+          return null;
+        }
+
+        return {
+          id: friendUser._id.toString(),
+          name: friendUser.name,
+          email: friendUser.email,
+          blocked: entry.blocked,
+        };
+      })
+    );
+
+    return friends.filter((friend): friend is NonNullable<typeof friend> => friend !== null);
   }
 
   /**
@@ -62,6 +93,40 @@ export class FriendListService extends BaseService<FriendListEntity> {
     }
 
     logger.info("Friend added", { userId, friendUserId });
+
+    // Ensure reciprocal friend entry exists for the other user as well.
+    // Do not fail the primary operation if this secondary update has issues.
+    (async () => {
+      try {
+        const otherList = await this.getOrCreateFriendList(friendUserId);
+
+        const otherExists = otherList.friendUserIds?.some(
+          (entry) => entry.friendUserId?.toString() === userId
+        );
+
+        if (!otherExists) {
+          const reverseEntry: Partial<FriendListEntryEntity> = {
+            friendUserId: userId as unknown as ObjectId,
+            blocked: false,
+          };
+
+          await this.model.findByIdAndUpdate(
+            (otherList as any)._id,
+            { $push: { friendUserIds: reverseEntry } },
+            { new: true }
+          );
+
+          logger.info("Reciprocal friend added", { userId: friendUserId, friendUserId: userId });
+        }
+      } catch (err) {
+        logger.error("Failed to add reciprocal friend", {
+          error: err instanceof Error ? err.stack ?? err.message : String(err),
+          userId,
+          friendUserId,
+        });
+      }
+    })();
+
     return updated;
   }
 

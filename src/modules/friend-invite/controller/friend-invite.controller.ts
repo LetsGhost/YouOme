@@ -19,7 +19,7 @@ class FriendInviteController extends BaseController {
 
     private async sendInvite(req: AuthRequest, res: Response): Promise<void> {
         const dto = createFriendInviteSchema
-            .pick({ toUserId: true })
+            .pick({ toUserEmail: true })
             .parse(req.body);
 
         const fromUserId = req.user?.id;
@@ -27,7 +27,7 @@ class FriendInviteController extends BaseController {
             throw new Error("Unauthorized");
         }
 
-        const invite = await friendInviteService.sendInvite(fromUserId, dto.toUserId);
+        const invite = await friendInviteService.sendInvite(fromUserId, dto.toUserEmail);
         res.status(201).json(invite);
     }
 

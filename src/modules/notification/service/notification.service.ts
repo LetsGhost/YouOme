@@ -15,6 +15,24 @@ export class NotificationService extends BaseService<NotificationEntity> {
     await eventBus.publish(event);
     return note;
   }
+
+  async listForUser(userId: string) {
+    return this.model.find({ userId }).sort({ createdAt: -1 });
+  }
+
+  async markRead(notificationId: string, userId: string) {
+    const note = await this.model.findOneAndUpdate(
+      { _id: notificationId, userId },
+      { $set: { readAt: new Date() } },
+      { new: true }
+    );
+
+    if (!note) {
+      throw new Error("Notification not found");
+    }
+
+    return note;
+  }
 }
 
 export const notificationService = new NotificationService();

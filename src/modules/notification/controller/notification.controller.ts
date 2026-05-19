@@ -16,6 +16,8 @@ class NotificationController extends BaseController {
     super();
     this.create = this.create.bind(this);
     this.getById = this.getById.bind(this);
+    this.listForCurrentUser = this.listForCurrentUser.bind(this);
+    this.markAsRead = this.markAsRead.bind(this);
   }
 
   protected routes(): void {
@@ -40,6 +42,8 @@ class NotificationController extends BaseController {
      *         description: Unauthorized
      */
     this.router.post("/", authenticate, this.create);
+    this.router.get("/", authenticate, this.listForCurrentUser);
+    this.router.patch("/:id/read", authenticate, this.markAsRead);
 
     /**
      * @openapi
@@ -76,6 +80,28 @@ class NotificationController extends BaseController {
   private async getById(req: Request, res: Response) {
     const note = await notificationService.findById(req.params.id);
     if (!note) throw new Error("Notification not found");
+    res.json(note);
+  }
+
+  private async listForCurrentUser(req: Request, res: Response) {
+    const userId = (req as typeof req & { user?: { id?: string } }).user?.id;
+
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
+    const notes = await notificationService.listForUser(userId);
+    res.json(notes);
+  }
+
+  private async markAsRead(req: Request, res: Response) {
+    const userId = (req as typeof req & { user?: { id?: string } }).user?.id;
+
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
+    const note = await notificationService.markRead(req.params.id, userId);
     res.json(note);
   }
 }
