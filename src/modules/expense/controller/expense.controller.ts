@@ -5,6 +5,10 @@ import { expenseService } from "../service/expense.service";
 import { createExpenseSchema } from "../schema/expense.schema";
 import { authenticate } from "../../../middleware/auth.middleware";
 import { expenseParticipantService } from "../../expense-participant/service/expenseParticipant.service";
+import { eventBus } from "../../common/messaging/event-bus";
+import { PaymentSubmittedEvent } from "../../expense-participant/events/payment-submitted.event";
+import { PaymentRejectedEvent } from "../../expense-participant/events/payment-rejected.event";
+import { PaymentConfirmedEvent } from "../../expense-participant/events/payment-confirmed.event";
 
 /**
  * @openapi
@@ -17,7 +21,9 @@ class ExpenseController extends BaseController {
     super();
     this.create = this.create.bind(this);
     this.getById = this.getById.bind(this);
-    this.confirmParticipant = this.confirmParticipant.bind(this);
+    this.submitPayment = this.submitPayment.bind(this);
+    this.rejectPayment = this.rejectPayment.bind(this);
+    this.confirmPayment = this.confirmPayment.bind(this);
     this.confirmReceipt = this.confirmReceipt.bind(this);
   }
 
@@ -71,6 +77,77 @@ class ExpenseController extends BaseController {
 
     /**
      * @openapi
+     * /api/expenses/{id}/participant/{userId}/submit-payment:
+     *   post:
+     *     summary: Submit payment for an expense
+     *     tags: [Expenses]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Expense ID
+     *       - in: path
+     *         name: userId
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Participant user ID
+     *     requestBody:
+     *       required: false
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               comment:
+     *                 type: string
+     *     responses:
+     *       200:
+     *         description: Payment submitted
+     *       401:
+     *         description: Unauthorized
+     *       404:
+     *         description: Participant not found
+     */
+    this.router.post("/:id/participant/:userId/submit-payment", authenticate, this.submitPayment);
+
+    /**
+     * @openapi
+     * /api/expenses/{id}/participant/{userId}/reject-payment:
+     *   post:
+     *     summary: Reject participant payment submission
+     *     tags: [Expenses]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Expense ID
+     *       - in: path
+     *         name: userId
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Participant user ID
+     *     responses:
+     *       200:
+     *         description: Payment rejected
+     *       401:
+     *         description: Unauthorized
+     *       404:
+     *         description: Participant not found
+     */
+    this.router.post("/:id/participant/:userId/reject-payment", authenticate, this.rejectPayment);
+
+    /**
+     * @openapi
      * /api/expenses/{id}/participant/{userId}/confirm-payment:
      *   post:
      *     summary: Confirm participant payment for expense
@@ -98,7 +175,7 @@ class ExpenseController extends BaseController {
      *       404:
      *         description: Participant not found
      */
-    this.router.post("/:id/participant/:userId/confirm-payment", authenticate, this.confirmParticipant);
+    this.router.post("/:id/participant/:userId/confirm-payment", authenticate, this.confirmPayment);
 
     /**
      * @openapi
@@ -151,10 +228,51 @@ class ExpenseController extends BaseController {
     res.json({ expense, participants });
   }
 
-  private async confirmParticipant(req: Request, res: Response) {
+  private async submitPayment(req: Request, res: Response) {
     const { id, userId } = req.params;
-    const participant = await expenseParticipantService.confirmParticipant(id, userId);
+    const { comment } = req.body;
+    const participant = await expenseParticipantService.submitPayment(id, userId, comment);
     if (!participant) throw new Error("Participant not found");
+
+    const submissionCount = await expenseParticipantService.getSubmissionCount(id, userId);
+    const event = new PaymentSubmittedEvent(id, {
+      expenseId: id,
+      userId,
+      comment,
+      submissionCount,
+    });
+    await eventBus.publish(event);
+
+    res.json(participant);
+  }
+
+  private async rejectPayment(req: Request, res: Response) {
+    const { id, userId } = req.params;
+    const participant = await expenseParticipantService.rejectPayment(id, userId);
+    if (!participant) throw new Error("Participant not found");
+
+    const submissionCount = await expenseParticipantService.getSubmissionCount(id, userId);
+    const event = new PaymentRejectedEvent(id, {
+      expenseId: id,
+      userId,
+      submissionCount,
+    });
+    await eventBus.publish(event);
+
+    res.json(participant);
+  }
+
+  private async confirmPayment(req: Request, res: Response) {
+    const { id, userId } = req.params;
+    const participant = await expenseParticipantService.confirmPayment(id, userId);
+    if (!participant) throw new Error("Participant not found");
+
+    const event = new PaymentConfirmedEvent(id, {
+      expenseId: id,
+      userId,
+      shareAmount: participant.shareAmount,
+    });
+    await eventBus.publish(event);
 
     res.json(participant);
   }

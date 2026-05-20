@@ -6,6 +6,8 @@ import { groupService } from "../service/group.service";
 import { createGroupSchema } from "../schema/group.schema";
 import mongoose from "mongoose";
 import { groupAccessService } from "../service/group-access.service";
+import { expenseService } from "../../expense/service/expense.service";
+import { expenseParticipantService } from "../../expense-participant/service/expenseParticipant.service";
 
 /**
  * @openapi
@@ -113,12 +115,42 @@ class GroupController extends BaseController {
     }
 
     await groupAccessService.assertMember(groupId, req.user!.id);
-    const group = await groupService.findById(req.params.id);
+    const [group, expenses] = await Promise.all([
+      groupService.findById(req.params.id),
+      expenseService.findAll({ groupId }),
+    ]);
+
     if (!group) {
       throw new Error("Group not found");
     }
 
-    res.json(this.serializeGroup(group));
+    const expenseSnapshots = await Promise.all(
+      expenses.map(async (expense) => {
+        const participants = await expenseParticipantService.getByExpense(expense._id.toString());
+
+        return {
+          id: expense._id.toString(),
+          groupId: expense.groupId,
+          title: expense.title,
+          description: expense.note || expense.title,
+          amount: expense.totalAmount,
+          totalAmount: expense.totalAmount,
+          paidBy: expense.paidByUserId || expense.createdByUserId,
+          status: expense.status,
+          splitType: expense.splitType,
+          participants: participants.map((participant) => participant.userId),
+          createdAt: expense.createdAt?.toISOString?.() ?? expense.createdAt,
+          date: expense.expenseDate?.toISOString?.() ?? expense.createdAt?.toISOString?.() ?? new Date().toISOString(),
+        };
+      })
+    );
+
+    res.json(
+      this.serializeGroup({
+        ...group.toObject(),
+        expenses: expenseSnapshots,
+      })
+    );
   }
 }
 

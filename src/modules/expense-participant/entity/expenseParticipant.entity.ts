@@ -18,6 +18,18 @@ export class ExpenseParticipantEntity extends BaseModel {
   @prop({ default: "pending" })
   status!: string;
 
+  @prop({ default: 0 })
+  submissionCount!: number;
+
+  @prop()
+  submittedAt?: Date;
+
+  @prop()
+  confirmedAt?: Date;
+
+  @prop()
+  comment?: string;
+
   @prop()
   paidAt?: Date;
 }

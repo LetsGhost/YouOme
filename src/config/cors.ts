@@ -4,10 +4,39 @@ import { env } from "./env";
 
 const isDevelopment = env.NODE_ENV === "development";
 
+const defaultProductionOrigins = [
+  "http://localhost:4173",
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://127.0.0.1:4173",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:3000",
+];
+
+const configuredProductionOrigins = (env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const allowedProductionOrigins = configuredProductionOrigins.length
+  ? configuredProductionOrigins
+  : defaultProductionOrigins;
+
 export const corsConfig: CorsOptions = {
-  origin: isDevelopment 
-    ? "*"  // Allow all origins in development
-    : process.env.ALLOWED_ORIGINS?.split(",") || ["https://yourdomain.com"],
+  origin: isDevelopment
+    ? "*"
+    : (requestOrigin, callback) => {
+        if (!requestOrigin || allowedProductionOrigins.includes(requestOrigin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(
+          new Error(
+            `CORS blocked origin: ${requestOrigin}. Allowed origins: ${allowedProductionOrigins.join(", ")}`
+          )
+        );
+      },
   
   credentials: true,
   
@@ -16,6 +45,7 @@ export const corsConfig: CorsOptions = {
   allowedHeaders: [
     "Content-Type",
     "Authorization",
+    "X-Dev-User-Id",
     "X-Requested-With",
     "X-Request-ID",
     "Accept",

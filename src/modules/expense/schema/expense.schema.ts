@@ -8,7 +8,6 @@ import { z } from "zod";
  *       type: object
  *       required:
  *         - userId
- *         - shareAmount
  *       properties:
  *         userId:
  *           type: string
@@ -16,6 +15,11 @@ import { z } from "zod";
  *         shareAmount:
  *           type: number
  *           minimum: 0
+ *           example: 25
+ *         sharePercent:
+ *           type: number
+ *           minimum: 0
+ *           maximum: 100
  *           example: 25
  *     CreateExpenseDTO:
  *       type: object
@@ -43,6 +47,7 @@ import { z } from "zod";
  *           example: 507f1f77bcf86cd799439012
  *         splitType:
  *           type: string
+ *           enum: [equal, custom, percentage]
  *           example: equal
  *         note:
  *           type: string
@@ -66,6 +71,7 @@ import { z } from "zod";
  *           type: number
  *         status:
  *           type: string
+ *           enum: [pending, payment-submitted, payment-confirmed, settled]
  */
 
 export const createExpenseSchema = z.object({
@@ -74,13 +80,20 @@ export const createExpenseSchema = z.object({
   title: z.string().min(1),
   totalAmount: z.number().positive(),
   paidByUserId: z.string().optional(),
-  splitType: z.string().optional(),
+  splitType: z.enum(["equal", "custom", "percentage"]).optional().default("equal"),
   note: z.string().optional(),
   participants: z.array(
-    z.object({ userId: z.string().min(1), shareAmount: z.number().nonnegative() })
+    z.object({
+      userId: z.string().min(1),
+      shareAmount: z.number().nonnegative().optional(),
+      sharePercent: z.number().min(0).max(100).optional(),
+    })
   ).optional(),
 });
 
-export const confirmParticipantSchema = z.object({});
+export const submitPaymentSchema = z.object({
+  comment: z.string().optional(),
+});
 
 export type CreateExpenseDTO = z.infer<typeof createExpenseSchema>;
+export type SubmitPaymentDTO = z.infer<typeof submitPaymentSchema>;
