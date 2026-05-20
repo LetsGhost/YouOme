@@ -41,4 +41,9 @@ export const createGroupInviteSchema = z.object({
   expiresAt: z.string().optional(),
 });
 
+export const respondToGroupInviteSchema = z.object({
+  accept: z.boolean(),
+});
+
 export type CreateGroupInviteDTO = z.infer<typeof createGroupInviteSchema>;
+export type RespondToGroupInviteDTO = z.infer<typeof respondToGroupInviteSchema>;

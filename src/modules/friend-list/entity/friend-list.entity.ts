@@ -1,11 +1,10 @@
-import {prop} from "@typegoose/typegoose";
-import { ObjectId } from "mongoose";
+import { prop } from "@typegoose/typegoose";
 
-import {BaseModel} from "../../common/base/base.model";
+import { BaseModel } from "../../common/base/base.model";
 
 export class FriendListEntity extends BaseModel {
     @prop({ required: true, unique: true, index: true })
-    userId!: ObjectId;
+    userId!: string;
 
     @prop({ required: true, default: [] })
     friendUserIds!: FriendListEntryEntity[];
@@ -13,7 +12,7 @@ export class FriendListEntity extends BaseModel {
 
 export class FriendListEntryEntity extends BaseModel {
     @prop({ required: true, unique: true, index: true })
-    friendUserId!: ObjectId;
+    friendUserId!: string;
 
     @prop({ required: true, default: false })
     blocked!: boolean;

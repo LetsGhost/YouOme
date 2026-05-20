@@ -1,15 +1,15 @@
 import { BaseService } from "../../common/base/base.service";
-import { eventBus } from "../../common/messaging";
+import { eventBus } from "../../common/messaging/event-bus";
 import { FriendInviteEntity } from "../entity/friend-invite.entity";
 import { FriendAddedEvent } from "../events/friend-added.event";
+import { FriendInviteCreatedEvent } from "../events/friendInvite-created.event";
 import { FriendInviteModel } from "../model/friend-invite.model";
 import { userService } from "../../user/service/user.service";
-import { notificationService } from "../../notification/service/notification.service";
 
 export class FriendService extends BaseService<FriendInviteEntity> {
     constructor() {
         super(FriendInviteModel);
-    } 
+    }
 
     async sendInvite(fromUserId: string, toUserEmail: string) {
         const toUser = await userService.findByEmail(toUserEmail.trim());
@@ -25,8 +25,8 @@ export class FriendService extends BaseService<FriendInviteEntity> {
         const existingInvite = await this.model.findOne({
             $or: [
                 { fromUserId, toUserId: toUser._id.toString() },
-                { fromUserId: toUser._id.toString(), toUserId: fromUserId }
-            ]
+                { fromUserId: toUser._id.toString(), toUserId: fromUserId },
+            ],
         });
 
         if (existingInvite) {
@@ -41,12 +41,14 @@ export class FriendService extends BaseService<FriendInviteEntity> {
         const invite = await this.create({ fromUserId, toUserId: toUser._id.toString() });
         const sender = await userService.findById(fromUserId);
 
-        await notificationService.createNotification(toUser._id.toString(), "friend.request", {
-            inviteId: invite._id.toString(),
+        const event = new FriendInviteCreatedEvent(invite._id.toString(), {
             fromUserId,
+            toUserId: toUser._id.toString(),
             fromUserEmail: sender?.email ?? "",
             fromUserName: sender?.name ?? sender?.email ?? "Someone",
         });
+
+        await eventBus.publish(event);
 
         return invite;
     }
@@ -74,7 +76,7 @@ export class FriendService extends BaseService<FriendInviteEntity> {
         }
 
         return invite;
-      }
+    }
 }
 
 export const friendInviteService = new FriendService();

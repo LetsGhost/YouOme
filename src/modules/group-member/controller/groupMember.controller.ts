@@ -18,6 +18,7 @@ class GroupMemberController extends BaseController {
     super();
     this.create = this.create.bind(this);
     this.getById = this.getById.bind(this);
+    this.listByGroup = this.listByGroup.bind(this);
   }
 
   protected routes(): void {
@@ -42,6 +43,29 @@ class GroupMemberController extends BaseController {
      *         description: Unauthorized
      */
     this.router.post("/", authenticate, this.create);
+
+    /**
+     * @openapi
+     * /api/group-members/group/{groupId}:
+     *   get:
+     *     summary: List members for a group
+     *     tags: [Group Members]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: groupId
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Group ID
+     *     responses:
+     *       200:
+     *         description: Group members found
+     *       401:
+     *         description: Unauthorized
+     */
+    this.router.get("/group/:groupId", authenticate, this.listByGroup);
 
     /**
      * @openapi
@@ -104,6 +128,24 @@ class GroupMemberController extends BaseController {
       }
       
       res.json(member);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async listByGroup(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const groupId = req.params.groupId;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        throw new Error("Unauthorized");
+      }
+
+      await groupAccessService.assertMember(groupId, userId);
+
+      const members = await groupMemberService.listMembers(groupId);
+      res.json(members);
     } catch (error) {
       throw error;
     }

@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 
 import { BaseController } from "../../common/base/base.controller";
 import { groupInviteService } from "../service/groupInvite.service";
-import { createGroupInviteSchema } from "../schema/groupInvite.schema";
+import { createGroupInviteSchema, respondToGroupInviteSchema } from "../schema/groupInvite.schema";
 import { authenticate, AuthRequest } from "../../../middleware/auth.middleware";
 import { GroupAccessRequest, groupAccessMiddleware } from "../../../middleware/group-access.middleware";
 import { groupAccessService } from "../../group/service/group-access.service";
@@ -18,6 +18,7 @@ class GroupInviteController extends BaseController {
     super();
     this.create = this.create.bind(this);
     this.getById = this.getById.bind(this);
+    this.respondToInvite = this.respondToInvite.bind(this);
   }
 
   protected routes(): void {
@@ -67,17 +68,58 @@ class GroupInviteController extends BaseController {
      *         description: Invite not found
      */
     this.router.get("/:id", authenticate, groupAccessMiddleware as any, this.getById);
+
+    /**
+     * @openapi
+     * /api/group-invites/{id}/respond:
+     *   patch:
+     *     summary: Respond to a group invite
+     *     tags: [Group Invites]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Invite ID
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/RespondToGroupInviteDTO'
+     *     responses:
+     *       200:
+     *         description: Invite updated
+     *       401:
+     *         description: Unauthorized
+     */
+    this.router.patch("/:id/respond", authenticate, this.respondToInvite);
   }
 
   private async create(req: AuthRequest, res: Response): Promise<void> {
     try {
       const dto = createGroupInviteSchema.parse(req.body);
+
+      if (!dto.invitedUserId) {
+        res.status(400).json({ error: "invitedUserId is required" });
+        return;
+      }
       
       // Manually check access for create (groupId in body, not params)
       try {
         await groupAccessService.assertOwnerOrAdmin(dto.groupId, req.user!.id);
       } catch (error) {
         res.status(403).json({ error: "Not authorized to invite for this group" });
+        return;
+      }
+
+      try {
+        await groupAccessService.assertNotMember(dto.groupId, dto.invitedUserId);
+      } catch (error) {
+        res.status(409).json({ error: "User is already a member of this group" });
         return;
       }
       
@@ -104,6 +146,22 @@ class GroupInviteController extends BaseController {
         return;
       }
       
+      res.json(invite);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async respondToInvite(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const dto = respondToGroupInviteSchema.parse(req.body);
+      const userId = req.user?.id;
+
+      if (!userId) {
+        throw new Error("Unauthorized");
+      }
+
+      const invite = await groupInviteService.respondToInvite(req.params.id, userId, dto.accept);
       res.json(invite);
     } catch (error) {
       throw error;

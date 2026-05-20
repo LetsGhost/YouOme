@@ -1,5 +1,3 @@
-import { ObjectId } from "mongoose";
-
 import { BaseService } from "../../common/base/base.service";
 import { FriendListEntity, FriendListEntryEntity } from "../entity/friend-list.entity";
 import { FriendListModel } from "../model/friend-list.model";
@@ -15,11 +13,11 @@ export class FriendListService extends BaseService<FriendListEntity> {
    * Get or create a friend list for a user
    */
   async getOrCreateFriendList(userId: string): Promise<FriendListEntity> {
-    let friendList = await this.findOne({ userId: userId as unknown as ObjectId });
+    let friendList = await this.findOne({ userId });
 
     if (!friendList) {
       friendList = await this.create({
-        userId: userId as unknown as ObjectId,
+        userId,
         friendUserIds: [],
       });
     }
@@ -65,20 +63,27 @@ export class FriendListService extends BaseService<FriendListEntity> {
       throw new Error("Cannot add yourself as a friend");
     }
 
+    const updated = await this.addFriendEntry(userId, friendUserId);
+    await this.addFriendEntry(friendUserId, userId);
+
+    logger.info("Friend added", { userId, friendUserId });
+
+    return updated;
+  }
+
+  private async addFriendEntry(userId: string, friendUserId: string): Promise<FriendListEntity> {
     const friendList = await this.getOrCreateFriendList(userId);
 
-    // Check if friend already exists
     const friendExists = friendList.friendUserIds?.some(
-      (entry) => entry.friendUserId?.toString() === friendUserId
+      (entry) => entry.friendUserId === friendUserId
     );
 
     if (friendExists) {
-      throw new Error("Friend already in your friend list");
+      return friendList;
     }
 
-    // Add friend entry
     const newEntry: Partial<FriendListEntryEntity> = {
-      friendUserId: friendUserId as unknown as ObjectId,
+      friendUserId,
       blocked: false,
     };
 
@@ -92,41 +97,6 @@ export class FriendListService extends BaseService<FriendListEntity> {
       throw new Error("Failed to add friend");
     }
 
-    logger.info("Friend added", { userId, friendUserId });
-
-    // Ensure reciprocal friend entry exists for the other user as well.
-    // Do not fail the primary operation if this secondary update has issues.
-    (async () => {
-      try {
-        const otherList = await this.getOrCreateFriendList(friendUserId);
-
-        const otherExists = otherList.friendUserIds?.some(
-          (entry) => entry.friendUserId?.toString() === userId
-        );
-
-        if (!otherExists) {
-          const reverseEntry: Partial<FriendListEntryEntity> = {
-            friendUserId: userId as unknown as ObjectId,
-            blocked: false,
-          };
-
-          await this.model.findByIdAndUpdate(
-            (otherList as any)._id,
-            { $push: { friendUserIds: reverseEntry } },
-            { new: true }
-          );
-
-          logger.info("Reciprocal friend added", { userId: friendUserId, friendUserId: userId });
-        }
-      } catch (err) {
-        logger.error("Failed to add reciprocal friend", {
-          error: err instanceof Error ? err.stack ?? err.message : String(err),
-          userId,
-          friendUserId,
-        });
-      }
-    })();
-
     return updated;
   }
 
@@ -134,11 +104,19 @@ export class FriendListService extends BaseService<FriendListEntity> {
    * Remove a friend from the friend list
    */
   async removeFriend(userId: string, friendUserId: string): Promise<FriendListEntity> {
+    const updated = await this.removeFriendEntry(userId, friendUserId);
+    await this.removeFriendEntry(friendUserId, userId);
+
+    logger.info("Friend removed", { userId, friendUserId });
+    return updated;
+  }
+
+  private async removeFriendEntry(userId: string, friendUserId: string): Promise<FriendListEntity> {
     const friendList = await this.getOrCreateFriendList(userId);
 
     const updated = await this.model.findByIdAndUpdate(
       (friendList as any)._id,
-      { $pull: { friendUserIds: { friendUserId: friendUserId as unknown as ObjectId } } },
+      { $pull: { friendUserIds: { friendUserId } } },
       { new: true }
     );
 
@@ -146,7 +124,6 @@ export class FriendListService extends BaseService<FriendListEntity> {
       throw new Error("Failed to remove friend");
     }
 
-    logger.info("Friend removed", { userId, friendUserId });
     return updated;
   }
 
@@ -164,7 +141,7 @@ export class FriendListService extends BaseService<FriendListEntity> {
       (friendList as any)._id,
       { $set: { "friendUserIds.$[elem].blocked": blocked } },
       {
-        arrayFilters: [{ "elem.friendUserId": friendUserId as unknown as ObjectId }],
+        arrayFilters: [{ "elem.friendUserId": friendUserId }],
         new: true,
       }
     );
@@ -180,7 +157,7 @@ export class FriendListService extends BaseService<FriendListEntity> {
   /**
    * Get all friends for a user (excluding blocked)
    */
-  async getFriends(userId: string, excludeBlocked: boolean = true): Promise<ObjectId[]> {
+  async getFriends(userId: string, excludeBlocked: boolean = true): Promise<string[]> {
     const friendList = await this.getOrCreateFriendList(userId);
 
     if (!friendList.friendUserIds) {
@@ -206,7 +183,7 @@ export class FriendListService extends BaseService<FriendListEntity> {
 
     return friendList.friendUserIds.some(
       (entry) =>
-        !entry.blocked && entry.friendUserId?.toString() === otherUserId
+        !entry.blocked && entry.friendUserId === otherUserId
     );
   }
 
@@ -221,7 +198,7 @@ export class FriendListService extends BaseService<FriendListEntity> {
     }
 
     const entry = friendList.friendUserIds.find(
-      (e) => e.friendUserId?.toString() === otherUserId
+      (e) => e.friendUserId === otherUserId
     );
 
     return entry?.blocked ?? false;

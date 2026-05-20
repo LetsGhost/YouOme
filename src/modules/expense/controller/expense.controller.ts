@@ -5,8 +5,6 @@ import { expenseService } from "../service/expense.service";
 import { createExpenseSchema } from "../schema/expense.schema";
 import { authenticate } from "../../../middleware/auth.middleware";
 import { expenseParticipantService } from "../../expense-participant/service/expenseParticipant.service";
-import { eventBus } from "../../common/messaging/event-bus";
-import { ExpenseCreatedWithParticipantsEvent } from "../events/expense-created-with-participants.event";
 
 /**
  * @openapi
@@ -135,19 +133,13 @@ class ExpenseController extends BaseController {
       dto.createdByUserId,
       dto.totalAmount,
       dto.title,
-      { paidByUserId: dto.paidByUserId, splitType: dto.splitType, note: dto.note }
-    );
-
-    // Publish event with participants - expense-participant module will handle creation
-    if (dto.participants && dto.participants.length > 0) {
-      const event = new ExpenseCreatedWithParticipantsEvent(expense._id.toString(), {
-        groupId: expense.groupId,
-        title: expense.title,
-        totalAmount: expense.totalAmount,
+      {
+        paidByUserId: dto.paidByUserId,
+        splitType: dto.splitType,
+        note: dto.note,
         participants: dto.participants,
-      });
-      await eventBus.publish(event);
-    }
+      }
+    );
 
     res.status(201).json(expense);
   }

@@ -16,6 +16,19 @@ export class GroupAccessService {
     return memberships.find((membership) => !membership.removedAt) ?? null;
   }
 
+  async assertNotMember(groupId: string, userId: string) {
+    const group = await this.getGroupOrThrow(groupId);
+
+    if (group.createdByUserId === userId) {
+      throw new Error("Already a member of this group");
+    }
+
+    const membership = await this.getMembership(groupId, userId);
+    if (membership) {
+      throw new Error("Already a member of this group");
+    }
+  }
+
   async isOwnerOrAdmin(groupId: string, userId: string) {
     const group = await this.getGroupOrThrow(groupId);
 

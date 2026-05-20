@@ -11,10 +11,7 @@ export class FriendAddedHandler extends EventHandler<FriendAddedEvent>{
   async handle(event: FriendAddedEvent): Promise<void> {
     const { userId, friendUserId } = event.payload;
 
-    await Promise.allSettled([
-      friendListService.addFriend(userId, friendUserId),
-      friendListService.addFriend(friendUserId, userId),
-    ]);
+    await friendListService.addFriend(userId, friendUserId);
 
     logger.info(`Friend added event handled`, {
       userId,

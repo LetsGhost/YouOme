@@ -3,6 +3,7 @@ import { ExpenseModel } from "../model/expense.model";
 import { ExpenseEntity } from "../entity/expense.entity";
 import { eventBus } from "../../common/messaging/event-bus";
 import { ExpenseCreatedEvent } from "../events/expense-created.event";
+import { ExpenseCreatedWithParticipantsEvent } from "../events/expense-created-with-participants.event";
 
 export class ExpenseService extends BaseService<ExpenseEntity> {
   constructor() {
@@ -14,7 +15,12 @@ export class ExpenseService extends BaseService<ExpenseEntity> {
     createdByUserId: string,
     totalAmount: number,
     title: string,
-    options: { paidByUserId?: string; splitType?: string; note?: string } = {}
+    options: {
+      paidByUserId?: string;
+      splitType?: string;
+      note?: string;
+      participants?: Array<{ userId: string; shareAmount?: number }>;
+    } = {}
   ) {
     const expense = await this.create({
       groupId,
@@ -33,6 +39,16 @@ export class ExpenseService extends BaseService<ExpenseEntity> {
       totalAmount: expense.totalAmount,
     });
     await eventBus.publish(event);
+
+    if (options.participants && options.participants.length > 0) {
+      const participantEvent = new ExpenseCreatedWithParticipantsEvent(expense._id.toString(), {
+        groupId: expense.groupId,
+        title: expense.title,
+        totalAmount: expense.totalAmount,
+        participants: options.participants,
+      });
+      await eventBus.publish(participantEvent);
+    }
 
     return expense;
   }
