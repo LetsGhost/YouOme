@@ -4,11 +4,13 @@ import { BaseController } from "../../common/base/base.controller";
 import { expenseService } from "../service/expense.service";
 import { createExpenseSchema } from "../schema/expense.schema";
 import { authenticate } from "../../../middleware/auth.middleware";
+import { AuthRequest } from "../../../middleware/auth.middleware";
 import { expenseParticipantService } from "../../expense-participant/service/expenseParticipant.service";
 import { eventBus } from "../../common/messaging/event-bus";
 import { PaymentSubmittedEvent } from "../../expense-participant/events/payment-submitted.event";
 import { PaymentRejectedEvent } from "../../expense-participant/events/payment-rejected.event";
 import { PaymentConfirmedEvent } from "../../expense-participant/events/payment-confirmed.event";
+import { groupAccessService } from "../../group/service/group-access.service";
 
 /**
  * @openapi
@@ -229,7 +231,19 @@ class ExpenseController extends BaseController {
   }
 
   private async submitPayment(req: Request, res: Response) {
+    const authReq = req as AuthRequest;
     const { id, userId } = req.params;
+    const expense = await expenseService.findById(id);
+
+    if (!expense) {
+      throw new Error("Expense not found");
+    }
+
+    if (authReq.user?.id !== userId) {
+      throw new Error("Forbidden");
+    }
+
+    await groupAccessService.assertMember(expense.groupId, authReq.user.id);
     const { comment } = req.body;
     const participant = await expenseParticipantService.submitPayment(id, userId, comment);
     if (!participant) throw new Error("Participant not found");
@@ -247,7 +261,18 @@ class ExpenseController extends BaseController {
   }
 
   private async rejectPayment(req: Request, res: Response) {
+    const authReq = req as AuthRequest;
     const { id, userId } = req.params;
+    const expense = await expenseService.findById(id);
+
+    if (!expense) {
+      throw new Error("Expense not found");
+    }
+
+    if (expense.createdByUserId !== authReq.user?.id) {
+      await groupAccessService.assertOwnerOrAdmin(expense.groupId, authReq.user!.id);
+    }
+
     const participant = await expenseParticipantService.rejectPayment(id, userId);
     if (!participant) throw new Error("Participant not found");
 
@@ -263,7 +288,18 @@ class ExpenseController extends BaseController {
   }
 
   private async confirmPayment(req: Request, res: Response) {
+    const authReq = req as AuthRequest;
     const { id, userId } = req.params;
+    const expense = await expenseService.findById(id);
+
+    if (!expense) {
+      throw new Error("Expense not found");
+    }
+
+    if (expense.createdByUserId !== authReq.user?.id) {
+      await groupAccessService.assertOwnerOrAdmin(expense.groupId, authReq.user!.id);
+    }
+
     const participant = await expenseParticipantService.confirmPayment(id, userId);
     if (!participant) throw new Error("Participant not found");
 

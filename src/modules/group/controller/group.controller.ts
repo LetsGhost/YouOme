@@ -20,6 +20,7 @@ class GroupController extends BaseController {
     super();
     this.create = this.create.bind(this);
     this.getById = this.getById.bind(this);
+    this.getDebtBoard = this.getDebtBoard.bind(this);
     this.list = this.list.bind(this);
   }
 
@@ -94,6 +95,31 @@ class GroupController extends BaseController {
      *         description: Group not found
      */
     this.router.get("/:id", authenticate, this.getById);
+
+    /**
+     * @openapi
+     * /api/groups/{id}/debts:
+     *   get:
+     *     summary: Get unsettled expense debts for a group
+     *     tags: [Groups]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Group ID
+     *     responses:
+     *       200:
+     *         description: Group debt board
+     *       401:
+     *         description: Unauthorized
+     *       403:
+     *         description: Forbidden
+     */
+    this.router.get("/:id/debts", authenticate, this.getDebtBoard);
   }
 
   private async create(req: AuthRequest, res: Response) {
@@ -151,6 +177,18 @@ class GroupController extends BaseController {
         expenses: expenseSnapshots,
       })
     );
+  }
+
+  private async getDebtBoard(req: AuthRequest, res: Response) {
+    const groupId = req.params.id;
+
+    if (!groupId || groupId === "undefined" || !mongoose.Types.ObjectId.isValid(groupId)) {
+      throw new Error("Invalid group ID format");
+    }
+
+    await groupAccessService.assertMember(groupId, req.user!.id);
+    const board = await groupService.findDebtBoard(groupId, req.user!.id);
+    res.json(board);
   }
 }
 
