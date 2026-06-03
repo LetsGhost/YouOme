@@ -4,8 +4,10 @@ import { BaseController } from "../../common/base/base.controller";
 import { authService } from "../service/auth.service";
 import {
   loginSchema,
+  resendVerificationSchema,
   refreshTokenSchema,
   registerSchema,
+  verifyEmailSchema,
 } from "../schema/auth.schema";
 import { eventBus } from "../../common/messaging/event-bus";
 import { UserRegistrationRequestedEvent } from "../../user/events/user-registration-requested.event";
@@ -24,6 +26,8 @@ class AuthController extends BaseController {
     this.refreshToken = this.refreshToken.bind(this);
     this.logout = this.logout.bind(this);
     this.getCurrentUser = this.getCurrentUser.bind(this);
+    this.verifyEmail = this.verifyEmail.bind(this);
+    this.resendVerification = this.resendVerification.bind(this);
   }
 
   protected routes(): void {
@@ -66,6 +70,46 @@ class AuthController extends BaseController {
      *         description: Bad request
      */
     this.router.post("/register", this.register);
+
+    /**
+     * @openapi
+     * /api/auth/verify-email:
+     *   post:
+     *     summary: Verify a user's email address
+     *     tags: [Auth]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/VerifyEmailDTO'
+     *     responses:
+     *       200:
+     *         description: Email verified successfully
+     *       400:
+     *         description: Invalid or expired verification code
+     */
+    this.router.post("/verify-email", this.verifyEmail);
+
+    /**
+     * @openapi
+     * /api/auth/resend-verification:
+     *   post:
+     *     summary: Resend the email verification code
+     *     tags: [Auth]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/ResendVerificationDTO'
+     *     responses:
+     *       200:
+     *         description: Verification code resent successfully
+     *       400:
+     *         description: Invalid request or code recently sent
+     */
+    this.router.post("/resend-verification", this.resendVerification);
 
     /**
      * @openapi
@@ -147,9 +191,23 @@ class AuthController extends BaseController {
     res.json(user);
   }
 
+  private async verifyEmail(req: Request, res: Response) {
+    const dto = verifyEmailSchema.parse(req.body);
+    const result = await authService.verifyEmail(dto);
+
+    res.json(result);
+  }
+
+  private async resendVerification(req: Request, res: Response) {
+    const dto = resendVerificationSchema.parse(req.body);
+    const result = await authService.resendVerificationCode(dto);
+
+    res.json(result);
+  }
+
   private async register(req: Request, res: Response) {
     const dto = registerSchema.parse(req.body);
-    
+
     // Publish event - user module will handle user creation
     const event = new UserRegistrationRequestedEvent(dto.email, {
       email: dto.email,
@@ -159,8 +217,9 @@ class AuthController extends BaseController {
     await eventBus.publish(event);
 
     res.status(201).json({
-      message: "Registration request received. User will be created shortly.",
+      message: "Registration request received. Check your email for a verification code.",
       email: dto.email,
+      verificationRequired: true,
     });
   }
 }

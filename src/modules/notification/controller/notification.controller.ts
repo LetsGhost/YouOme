@@ -18,6 +18,9 @@ class NotificationController extends BaseController {
     this.getById = this.getById.bind(this);
     this.listForCurrentUser = this.listForCurrentUser.bind(this);
     this.markAsRead = this.markAsRead.bind(this);
+    this.markAllAsRead = this.markAllAsRead.bind(this);
+    this.deleteNotification = this.deleteNotification.bind(this);
+    this.clearNotifications = this.clearNotifications.bind(this);
   }
 
   protected routes(): void {
@@ -43,7 +46,10 @@ class NotificationController extends BaseController {
      */
     this.router.post("/", authenticate, this.create);
     this.router.get("/", authenticate, this.listForCurrentUser);
+    this.router.patch("/read-all", authenticate, this.markAllAsRead);
     this.router.patch("/:id/read", authenticate, this.markAsRead);
+    this.router.delete("/", authenticate, this.clearNotifications);
+    this.router.delete("/:id", authenticate, this.deleteNotification);
 
     /**
      * @openapi
@@ -103,6 +109,39 @@ class NotificationController extends BaseController {
 
     const note = await notificationService.markRead(req.params.id, userId);
     res.json(note);
+  }
+
+  private async markAllAsRead(req: Request, res: Response) {
+    const userId = (req as typeof req & { user?: { id?: string } }).user?.id;
+
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
+    const notes = await notificationService.markAllRead(userId);
+    res.json(notes);
+  }
+
+  private async deleteNotification(req: Request, res: Response) {
+    const userId = (req as typeof req & { user?: { id?: string } }).user?.id;
+
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
+    await notificationService.deleteNotification(req.params.id, userId);
+    res.status(204).send();
+  }
+
+  private async clearNotifications(req: Request, res: Response) {
+    const userId = (req as typeof req & { user?: { id?: string } }).user?.id;
+
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
+    await notificationService.clearForUser(userId);
+    res.status(204).send();
   }
 }
 

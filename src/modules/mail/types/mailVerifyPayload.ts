@@ -1,5 +1,5 @@
 export type MailVerifyPayload = {
     to: string;
-    name?: string;
-    verificationUrl?: string
+    name: string;
+    code: string;
 }

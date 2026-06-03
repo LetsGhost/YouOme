@@ -1,15 +1,17 @@
 import { EventHandler } from "../../common/messaging/event-handler";
-import { UserCreatedEvent } from "../../user/events/user-created.event";
+import { UserEmailVerificationRequestedEvent } from "../../user/events/user-email-verification-requested.event";
 import { mailservice } from "../service/mail.service";
 
-export class UserCreatedMailHandler extends EventHandler<UserCreatedEvent> {
+export class UserCreatedMailHandler extends EventHandler<UserEmailVerificationRequestedEvent> {
     getEventType(): string {
-        return "user.created";
+        return "user.email_verification_requested";
     }
 
-    async handle(event: UserCreatedEvent): Promise<void> {
+    async handle(event: UserEmailVerificationRequestedEvent): Promise<void> {
         await mailservice.sendMailVerification({
             to: event.payload.email,
+            name: event.payload.name,
+            code: event.payload.code,
         });
     }
 

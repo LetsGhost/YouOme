@@ -33,6 +33,29 @@ export class NotificationService extends BaseService<NotificationEntity> {
 
     return note;
   }
+
+  async markAllRead(userId: string) {
+    await this.model.updateMany(
+      { userId, $or: [{ readAt: { $exists: false } }, { readAt: null }] },
+      { $set: { readAt: new Date() } }
+    );
+
+    return this.listForUser(userId);
+  }
+
+  async deleteNotification(notificationId: string, userId: string) {
+    const note = await this.model.findOneAndDelete({ _id: notificationId, userId });
+
+    if (!note) {
+      throw new Error("Notification not found");
+    }
+
+    return note;
+  }
+
+  async clearForUser(userId: string) {
+    return this.model.deleteMany({ userId });
+  }
 }
 
 export const notificationService = new NotificationService();

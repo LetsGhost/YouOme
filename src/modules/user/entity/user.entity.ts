@@ -19,14 +19,20 @@ export class UserEntity extends BaseModel {
     emailVerifiedAt?: Date;
 
     @prop()
+    emailVerificationCodeHash?: string;
+
+    @prop()
+    emailVerificationCodeExpiresAt?: Date;
+
+    @prop()
     emailVerificationLastSentAt?: Date;
-    
+
     @prop()
     suspendedAt?: Date;
 
     @prop()
     lastLoginAt?: Date;
-    
+
     @prop({ default: true })
     emailNotificationsEnabled!: boolean;
 }
