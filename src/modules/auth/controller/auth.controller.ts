@@ -12,6 +12,9 @@ import {
 import { eventBus } from "../../common/messaging/event-bus";
 import { UserRegistrationRequestedEvent } from "../../user/events/user-registration-requested.event";
 import { authenticate, AuthRequest } from "../../../middleware/auth.middleware";
+import { env } from "../../../config/env";
+import { userService } from "../../user/service/user.service";
+import { signAccessToken, signRefreshToken } from "../../common/auth/jwt";
 
 /**
  * @openapi
@@ -26,6 +29,7 @@ class AuthController extends BaseController {
     this.refreshToken = this.refreshToken.bind(this);
     this.logout = this.logout.bind(this);
     this.getCurrentUser = this.getCurrentUser.bind(this);
+    this.deleteCurrentUser = this.deleteCurrentUser.bind(this);
     this.verifyEmail = this.verifyEmail.bind(this);
     this.resendVerification = this.resendVerification.bind(this);
   }
@@ -162,6 +166,22 @@ class AuthController extends BaseController {
      *         description: Unauthorized
      */
     this.router.get("/me", authenticate, this.getCurrentUser);
+
+    /**
+     * @openapi
+     * /api/auth/me:
+     *   delete:
+     *     summary: Delete the current user account
+     *     tags: [Auth]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Account deleted successfully
+     *       401:
+     *         description: Unauthorized
+     */
+    this.router.delete("/me", authenticate, this.deleteCurrentUser);
   }
 
   private async login(req: Request, res: Response) {
@@ -191,6 +211,13 @@ class AuthController extends BaseController {
     res.json(user);
   }
 
+  private async deleteCurrentUser(req: AuthRequest, res: Response) {
+    const userId = req.user!.id;
+    const result = await authService.deleteCurrentUser(userId);
+
+    res.json(result);
+  }
+
   private async verifyEmail(req: Request, res: Response) {
     const dto = verifyEmailSchema.parse(req.body);
     const result = await authService.verifyEmail(dto);
@@ -207,6 +234,30 @@ class AuthController extends BaseController {
 
   private async register(req: Request, res: Response) {
     const dto = registerSchema.parse(req.body);
+
+    if (env.DISABLE_EMAIL_VERIFICATION) {
+      const user = await userService.createUser(dto.email, dto.password, dto.name, {
+        verified: true,
+      });
+
+      const payload = { sub: user._id.toString(), role: user.role };
+
+      res.status(201).json({
+        message: "Registration completed successfully.",
+        verificationRequired: false,
+        user: {
+          id: user._id.toString(),
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          emailVerifiedAt: user.emailVerifiedAt ?? null,
+        },
+        accessToken: signAccessToken(payload),
+        refreshToken: signRefreshToken(payload),
+      });
+
+      return;
+    }
 
     // Publish event - user module will handle user creation
     const event = new UserRegistrationRequestedEvent(dto.email, {

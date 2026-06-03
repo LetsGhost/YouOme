@@ -48,21 +48,28 @@ export class UserService extends BaseService<UserEntity> {
     return this.model.findOne({ email });
   }
 
-  async createUser(email: string, password: string, name?: string) {
+  async createUser(
+    email: string,
+    password: string,
+    name?: string,
+    options?: { verified?: boolean }
+  ) {
     if (await this.model.exists({ email })) {
       throw new Error("Email already exists");
     }
 
     const displayName = name && name.trim().length > 0 ? name.trim() : email.split("@")[0];
-    const verificationCode = this.generateEmailVerificationCode();
+    const shouldSkipVerification = options?.verified === true;
+    const verificationCode = shouldSkipVerification ? null : this.generateEmailVerificationCode();
 
     const user = await this.create({
       email,
       password: await bcrypt.hash(password, 10),
       name: displayName,
-      emailVerificationCodeHash: this.hashEmailVerificationCode(verificationCode),
-      emailVerificationCodeExpiresAt: this.getEmailVerificationExpiresAt(),
-      emailVerificationLastSentAt: new Date(),
+      emailVerifiedAt: shouldSkipVerification ? new Date() : undefined,
+      emailVerificationCodeHash: verificationCode ? this.hashEmailVerificationCode(verificationCode) : undefined,
+      emailVerificationCodeExpiresAt: verificationCode ? this.getEmailVerificationExpiresAt() : undefined,
+      emailVerificationLastSentAt: verificationCode ? new Date() : undefined,
     });
 
     // Emit domain event
@@ -72,14 +79,16 @@ export class UserService extends BaseService<UserEntity> {
     });
     await eventBus.publish(event);
 
-    try {
-      await this.publishEmailVerificationRequested(user, verificationCode);
-    } catch (error) {
-      logger.error("Failed to send registration verification email", {
-        userId: user._id.toString(),
-        email: user.email,
-        error: error instanceof Error ? error.message : String(error),
-      });
+    if (verificationCode) {
+      try {
+        await this.publishEmailVerificationRequested(user, verificationCode);
+      } catch (error) {
+        logger.error("Failed to send registration verification email", {
+          userId: user._id.toString(),
+          email: user.email,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     return user;

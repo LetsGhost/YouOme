@@ -27,6 +27,8 @@ A TypeScript/Express backend architecture with MongoDB, JWT authentication, Swag
 2. Configure environment:
    - Copy `.env` (already present) and update values if needed.
    - Defaults: local MongoDB, dev mode, and auth bypass enabled.
+   - Set `DISABLE_EMAIL_VERIFICATION=true` to skip email verification during registration and sign users in immediately.
+   - Rate limits are configurable with `API_RATE_LIMIT_MAX`, `API_RATE_LIMIT_WINDOW_MS`, `AUTH_RATE_LIMIT_MAX`, and `AUTH_RATE_LIMIT_WINDOW_MS`.
 
 3. Run in development:
    ```sh

@@ -55,14 +55,14 @@ export const createRateLimiter = () => {
   return rateLimit({
     store: new LoggingStore(),
 
-    // 15 minutes window
-    windowMs: 15 * 60 * 1000,
+    // Rate limit window controlled by env
+    windowMs: env.API_RATE_LIMIT_WINDOW_MS,
 
-    // Limit each IP to 100 requests per windowMs
-    max: 100,
+    // Looser default limit for normal app usage
+    max: env.API_RATE_LIMIT_MAX,
 
     // Standardized response
-    message: "Too many requests from this IP, please try again after 15 minutes",
+    message: "Too many requests from this IP, please try again later",
 
     // Include retry-after header
     standardHeaders: true,
@@ -115,13 +115,13 @@ export const createAuthRateLimiter = () => {
 
     store: new LoggingStore(),
 
-    // 15 minutes window
-    windowMs: 15 * 60 * 1000,
+    // Rate limit window controlled by env
+    windowMs: env.AUTH_RATE_LIMIT_WINDOW_MS,
 
-    // Limit each IP to 5 login attempts per windowMs
-    max: 5,
+    // Slightly less aggressive auth throttle while still preventing brute force
+    max: env.AUTH_RATE_LIMIT_MAX,
 
-    message: "Too many login attempts, please try again after 15 minutes",
+    message: "Too many login attempts, please try again later",
 
     standardHeaders: true,
 

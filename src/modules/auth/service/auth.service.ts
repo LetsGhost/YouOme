@@ -13,6 +13,7 @@ import {
   VerifyEmailInput,
 } from "../schema/auth.schema";
 import { logger } from "../../common/logger/logger";
+import { invalidateUserCache } from "../../../middleware/auth.middleware";
 
 export class AuthService {
   async login(data: LoginInput) {
@@ -113,6 +114,21 @@ export class AuthService {
       name: user.name,
       role: user.role,
       emailVerifiedAt: user.emailVerifiedAt ?? null,
+    };
+  }
+
+  async deleteCurrentUser(userId: string) {
+    const deletedUser = await userService.deleteById(userId);
+    if (!deletedUser) {
+      throw new Error("User not found");
+    }
+
+    await invalidateUserCache(userId);
+
+    logger.info("User deleted", { userId });
+
+    return {
+      message: "Account deleted successfully",
     };
   }
 }
