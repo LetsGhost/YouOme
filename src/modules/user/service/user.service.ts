@@ -59,7 +59,7 @@ export class UserService extends BaseService<UserEntity> {
     }
 
     const displayName = name && name.trim().length > 0 ? name.trim() : email.split("@")[0];
-    const shouldSkipVerification = options?.verified === true;
+    const shouldSkipVerification = env.DISABLE_EMAIL_VERIFICATION || options?.verified === true;
     const verificationCode = shouldSkipVerification ? null : this.generateEmailVerificationCode();
 
     const user = await this.create({

@@ -24,7 +24,7 @@ export class AuthService {
       throw new Error("Invalid email or password");
     }
 
-    if (!user.emailVerifiedAt) {
+    if (!env.DISABLE_EMAIL_VERIFICATION && !user.emailVerifiedAt) {
       throw new Error("Email not verified");
     }
 
@@ -54,6 +54,24 @@ export class AuthService {
   }
 
   async verifyEmail(data: VerifyEmailInput) {
+    if (env.DISABLE_EMAIL_VERIFICATION) {
+      const user = await userService.findByEmail(data.email);
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      return {
+        message: "Email verification is currently disabled",
+        user: {
+          id: user._id.toString(),
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          emailVerifiedAt: user.emailVerifiedAt ?? null,
+        },
+      };
+    }
+
     const user = await userService.verifyEmail(data.email, data.code);
 
     return {
@@ -69,6 +87,13 @@ export class AuthService {
   }
 
   async resendVerificationCode(data: ResendVerificationInput) {
+    if (env.DISABLE_EMAIL_VERIFICATION) {
+      return {
+        message: "Email verification is currently disabled",
+        email: data.email,
+      };
+    }
+
     await userService.resendEmailVerification(data.email);
 
     return {
