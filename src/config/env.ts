@@ -28,12 +28,4 @@ export const env = {
   API_RATE_LIMIT_MAX: Number(process.env.API_RATE_LIMIT_MAX) || 300,
   AUTH_RATE_LIMIT_WINDOW_MS: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
   AUTH_RATE_LIMIT_MAX: Number(process.env.AUTH_RATE_LIMIT_MAX) || 10,
-
-  // EMAIL
-  RESEND_API_KEY: process.env.RESEND_API_KEY!,
-  EMAIL_FROM: process.env.EMAIL_FROM!,
-  EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO!,
-  EMAIL_TOKEN_SECRET: process.env.EMAIL_TOKEN_SECRET!,
-  EMAIL_TOKEN_EXPIRES_IN: process.env.EMAIL_TOKEN_EXPIRES_IN || "24h",
-  DISABLE_EMAIL_VERIFICATION: process.env.DISABLE_EMAIL_VERIFICATION === "true",
 };

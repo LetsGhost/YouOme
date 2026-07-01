@@ -34,9 +34,7 @@ This is a modular monolith built on **filesystem auto-discovery**: controllers, 
 
 Each feature lives under `src/modules/<name>/` with a consistent file-suffix convention: `*.controller.ts`, `*.service.ts`, `*.model.ts` (Typegoose model), `*.entity.ts` (Typegoose class), `*.schema.ts` (Zod DTOs), and an `events/` folder with `*.event.ts` / `*.handler.ts`.
 
-Modules: `auth`, `user`, `group`, `group-member`, `group-invite`, `group-policy`, `friend-invite`, `friend-list`, `expense`, `expense-participant`, `settlement`, `debt-ledger`, `collaboration`, `p2p-expense`, `p2p-thread`, `notification`, `mail`, `redis`, and a stray `categorie` module (entity only, no controller/service — not wired into routing or the DB).
-
-`mail` also has no controller — it's event-driven only (see below).
+Modules: `auth`, `user`, `group`, `group-member`, `group-invite`, `group-policy`, `friend-invite`, `friend-list`, `expense`, `expense-participant`, `settlement`, `debt-ledger`, `collaboration`, `p2p-expense`, `p2p-thread`, `notification`, `redis`, and a stray `categorie` module (entity only, no controller/service — not wired into routing or the DB).
 
 **Controller auto-registration** (`src/modules/common/registry/controller/registry.controller.ts`): for every module folder with a `controller/` subdirectory, it `require()`s the `*.controller.ts` file, expects the first export to be a singleton instance with a `.router` (convention: `export const xController = new XController();`), and mounts it at `moduleName === "auth" ? "/api/auth" : "/api/${moduleName}s"`. **This pluralization is naive string concatenation, not smart pluralization** — e.g. `redis` → `/api/rediss` (not a typo), `group-member` → `/api/group-members`. Controller class names don't have to match the mount path; check the registry logic or the running Swagger spec if unsure of a route.
 
@@ -52,7 +50,7 @@ Prefer this event bus for cross-module fan-out (notifications, mail, mirrored wr
 
 Known event flows (publisher → event → subscriber(s)):
 
-- `auth.register` → `user.registration_requested` → `user` module creates the user → `user.created` → `mail` (sends verification email, itself publishes `user.email_verification_requested`)
+- `auth.register` creates the user synchronously (no event indirection) and publishes `user.created` (consumed only by a no-op logger handler today)
 - `group.service` → `group.created` → `group-member` (auto-adds owner), `group-policy` (seeds default policy), `notification` — all three run in parallel
 - `group-invite.service` → `groupInvite.created` → `notification`; on accept → `groupInvite.accepted` → `group-member` (adds member)
 - `expense.controller`/`expense.service` → `expense.created_with_participants` → `expense-participant` (creates participant rows), `notification`
@@ -79,7 +77,7 @@ JWT: access tokens 15m / refresh tokens 7d (hardcoded expiries in `common/auth/j
 
 ### Config/env
 
-`src/config/env.ts` loads and types env vars; `JWT_SECRET`/`JWT_REFRESH_SECRET`/`MONGO_URI` are asserted non-null but not validated at startup (a missing var becomes `undefined` at runtime, not a boot-time error). `src/config/cors.ts` is wide open (`origin: "*"`) in development and restricted to `ALLOWED_ORIGINS` in production; allows the custom `X-Dev-User-Id` header used by the bypass. See `example.env` for the full variable list (Mongo, Redis, JWT, rate limits, Resend email, CORS origins).
+`src/config/env.ts` loads and types env vars; `JWT_SECRET`/`JWT_REFRESH_SECRET`/`MONGO_URI` are asserted non-null but not validated at startup (a missing var becomes `undefined` at runtime, not a boot-time error). `src/config/cors.ts` is wide open (`origin: "*"`) in development and restricted to `ALLOWED_ORIGINS` in production; allows the custom `X-Dev-User-Id` header used by the bypass. See `example.env` for the full variable list (Mongo, Redis, JWT, rate limits, CORS origins).
 
 ### Scheduled jobs (`src/modules/common/scheduler/`)
 

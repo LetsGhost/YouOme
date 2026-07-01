@@ -2,17 +2,8 @@ import { Request, Response } from "express";
 
 import { BaseController } from "../../common/base/base.controller";
 import { authService } from "../service/auth.service";
-import {
-  loginSchema,
-  resendVerificationSchema,
-  refreshTokenSchema,
-  registerSchema,
-  verifyEmailSchema,
-} from "../schema/auth.schema";
-import { eventBus } from "../../common/messaging/event-bus";
-import { UserRegistrationRequestedEvent } from "../../user/events/user-registration-requested.event";
+import { loginSchema, refreshTokenSchema, registerSchema } from "../schema/auth.schema";
 import { authenticate, AuthRequest } from "../../../middleware/auth.middleware";
-import { env } from "../../../config/env";
 import { userService } from "../../user/service/user.service";
 import { signAccessToken, signRefreshToken } from "../../common/auth/jwt";
 import { isSystemAdminEmail } from "../../../utils/auth/system-admin.utils";
@@ -31,8 +22,6 @@ class AuthController extends BaseController {
     this.logout = this.logout.bind(this);
     this.getCurrentUser = this.getCurrentUser.bind(this);
     this.deleteCurrentUser = this.deleteCurrentUser.bind(this);
-    this.verifyEmail = this.verifyEmail.bind(this);
-    this.resendVerification = this.resendVerification.bind(this);
   }
 
   protected routes(): void {
@@ -60,7 +49,7 @@ class AuthController extends BaseController {
      * @openapi
       * /api/auth/register:
      *   post:
-     *     summary: Register a new user (no auto-login)
+     *     summary: Register a new user and log them in
      *     tags: [Auth]
      *     requestBody:
      *       required: true
@@ -75,46 +64,6 @@ class AuthController extends BaseController {
      *         description: Bad request
      */
     this.router.post("/register", this.wrap(this.register));
-
-    /**
-     * @openapi
-     * /api/auth/verify-email:
-     *   post:
-     *     summary: Verify a user's email address
-     *     tags: [Auth]
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             $ref: '#/components/schemas/VerifyEmailDTO'
-     *     responses:
-     *       200:
-     *         description: Email verified successfully
-     *       400:
-     *         description: Invalid or expired verification code
-     */
-    this.router.post("/verify-email", this.wrap(this.verifyEmail));
-
-    /**
-     * @openapi
-     * /api/auth/resend-verification:
-     *   post:
-     *     summary: Resend the email verification code
-     *     tags: [Auth]
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             $ref: '#/components/schemas/ResendVerificationDTO'
-     *     responses:
-     *       200:
-     *         description: Verification code resent successfully
-     *       400:
-     *         description: Invalid request or code recently sent
-     */
-    this.router.post("/resend-verification", this.wrap(this.resendVerification));
 
     /**
      * @openapi
@@ -220,59 +169,22 @@ class AuthController extends BaseController {
     res.json(result);
   }
 
-  private async verifyEmail(req: Request, res: Response) {
-    const dto = verifyEmailSchema.parse(req.body);
-    const result = await authService.verifyEmail(dto);
-
-    res.json(result);
-  }
-
-  private async resendVerification(req: Request, res: Response) {
-    const dto = resendVerificationSchema.parse(req.body);
-    const result = await authService.resendVerificationCode(dto);
-
-    res.json(result);
-  }
-
   private async register(req: Request, res: Response) {
     const dto = registerSchema.parse(req.body);
 
-    if (env.DISABLE_EMAIL_VERIFICATION) {
-      const user = await userService.createUser(dto.email, dto.password, dto.name, {
-        verified: true,
-      });
-
-      const payload = { sub: user._id.toString(), role: user.role };
-
-      res.status(201).json({
-        message: "Registration completed successfully.",
-        verificationRequired: false,
-        user: {
-          id: user._id.toString(),
-          email: user.email,
-          name: user.name,
-          role: isSystemAdminEmail(user.email) ? "admin" : user.role,
-          emailVerifiedAt: user.emailVerifiedAt ?? null,
-        },
-        accessToken: signAccessToken(payload),
-        refreshToken: signRefreshToken(payload),
-      });
-
-      return;
-    }
-
-    // Publish event - user module will handle user creation
-    const event = new UserRegistrationRequestedEvent(dto.email, {
-      email: dto.email,
-      password: dto.password,
-      name: dto.name,
-    });
-    await eventBus.publish(event);
+    const user = await userService.createUser(dto.email, dto.password, dto.name);
+    const payload = { sub: user._id.toString(), role: user.role };
 
     res.status(201).json({
-      message: "Registration request received. Check your email for a verification code.",
-      email: dto.email,
-      verificationRequired: true,
+      message: "Registration completed successfully.",
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        name: user.name,
+        role: isSystemAdminEmail(user.email) ? "admin" : user.role,
+      },
+      accessToken: signAccessToken(payload),
+      refreshToken: signRefreshToken(payload),
     });
   }
 }

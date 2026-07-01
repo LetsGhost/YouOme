@@ -43,26 +43,6 @@ import { z } from "zod";
  *           type: string
  *         refreshToken:
  *           type: string
- *     VerifyEmailDTO:
- *       type: object
- *       required:
- *         - email
- *         - code
- *       properties:
- *         email:
- *           type: string
- *           format: email
- *         code:
- *           type: string
- *           example: "123456"
- *     ResendVerificationDTO:
- *       type: object
- *       required:
- *         - email
- *       properties:
- *         email:
- *           type: string
- *           format: email
  */
 
 export const loginSchema = z.object({
@@ -83,15 +63,4 @@ export const registerSchema = z.object({
   name: z.string().min(1).max(100).optional(),
 });
 
-export const verifyEmailSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  code: z.string().regex(/^\d{6}$/, "Verification code must be 6 digits"),
-});
-
-export const resendVerificationSchema = z.object({
-  email: z.string().email("Invalid email address"),
-});
-
 export type RegisterInput = z.infer<typeof registerSchema>;
-export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
-export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;

@@ -7,11 +7,7 @@ import {
   JwtPayload,
 } from "../../common/auth/jwt";
 import { env } from "../../../config/env";
-import {
-  LoginInput,
-  ResendVerificationInput,
-  VerifyEmailInput,
-} from "../schema/auth.schema";
+import { LoginInput } from "../schema/auth.schema";
 import { logger } from "../../common/logger/logger";
 import { invalidateUserCache } from "../../../middleware/auth.middleware";
 import { redisService } from "../../redis/service/redis.service";
@@ -27,10 +23,6 @@ export class AuthService {
     const user = await userService.validateUser(email, password);
     if (!user) {
       throw new Error("Invalid email or password");
-    }
-
-    if (!env.DISABLE_EMAIL_VERIFICATION && !user.emailVerifiedAt) {
-      throw new Error("Email not verified");
     }
 
     const payload: JwtPayload = { sub: user._id.toString(), role: user.role };
@@ -49,59 +41,9 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: isSystemAdminEmail(user.email) ? "admin" : user.role,
-        emailVerifiedAt: user.emailVerifiedAt ?? null,
       },
       accessToken,
       refreshToken,
-    };
-  }
-
-  async verifyEmail(data: VerifyEmailInput) {
-    if (env.DISABLE_EMAIL_VERIFICATION) {
-      const user = await userService.findByEmail(data.email);
-      if (!user) {
-        throw new Error("User not found");
-      }
-
-      return {
-        message: "Email verification is currently disabled",
-        user: {
-          id: user._id.toString(),
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          emailVerifiedAt: user.emailVerifiedAt ?? null,
-        },
-      };
-    }
-
-    const user = await userService.verifyEmail(data.email, data.code);
-
-    return {
-      message: "Email verified successfully",
-      user: {
-        id: user._id.toString(),
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        emailVerifiedAt: user.emailVerifiedAt ?? null,
-      },
-    };
-  }
-
-  async resendVerificationCode(data: ResendVerificationInput) {
-    if (env.DISABLE_EMAIL_VERIFICATION) {
-      return {
-        message: "Email verification is currently disabled",
-        email: data.email,
-      };
-    }
-
-    await userService.resendEmailVerification(data.email);
-
-    return {
-      message: "Verification code resent successfully",
-      email: data.email,
     };
   }
 
@@ -152,7 +94,6 @@ export class AuthService {
       email: user.email,
       name: user.name,
       role: isSystemAdminEmail(user.email) ? "admin" : user.role,
-      emailVerifiedAt: user.emailVerifiedAt ?? null,
     };
   }
 

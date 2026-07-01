@@ -16,18 +16,6 @@ export class UserEntity extends BaseModel {
     role!: string;
 
     @prop()
-    emailVerifiedAt?: Date;
-
-    @prop()
-    emailVerificationCodeHash?: string;
-
-    @prop()
-    emailVerificationCodeExpiresAt?: Date;
-
-    @prop()
-    emailVerificationLastSentAt?: Date;
-
-    @prop()
     suspendedAt?: Date;
 
     @prop()
