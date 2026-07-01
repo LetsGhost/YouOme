@@ -6,10 +6,6 @@ import { createExpenseSchema } from "../schema/expense.schema";
 import { authenticate } from "../../../middleware/auth.middleware";
 import { AuthRequest } from "../../../middleware/auth.middleware";
 import { expenseParticipantService } from "../../expense-participant/service/expenseParticipant.service";
-import { eventBus } from "../../common/messaging/event-bus";
-import { PaymentSubmittedEvent } from "../../expense-participant/events/payment-submitted.event";
-import { PaymentRejectedEvent } from "../../expense-participant/events/payment-rejected.event";
-import { PaymentConfirmedEvent } from "../../expense-participant/events/payment-confirmed.event";
 import { groupAccessService } from "../../group/service/group-access.service";
 
 /**
@@ -246,16 +242,6 @@ class ExpenseController extends BaseController {
     await groupAccessService.assertMember(expense.groupId, authReq.user.id);
     const { comment } = req.body;
     const participant = await expenseParticipantService.submitPayment(id, userId, comment);
-    if (!participant) throw new Error("Participant not found");
-
-    const submissionCount = await expenseParticipantService.getSubmissionCount(id, userId);
-    const event = new PaymentSubmittedEvent(id, {
-      expenseId: id,
-      userId,
-      comment,
-      submissionCount,
-    });
-    await eventBus.publish(event);
 
     res.json(participant);
   }
@@ -274,15 +260,6 @@ class ExpenseController extends BaseController {
     }
 
     const participant = await expenseParticipantService.rejectPayment(id, userId);
-    if (!participant) throw new Error("Participant not found");
-
-    const submissionCount = await expenseParticipantService.getSubmissionCount(id, userId);
-    const event = new PaymentRejectedEvent(id, {
-      expenseId: id,
-      userId,
-      submissionCount,
-    });
-    await eventBus.publish(event);
 
     res.json(participant);
   }
@@ -301,14 +278,6 @@ class ExpenseController extends BaseController {
     }
 
     const participant = await expenseParticipantService.confirmPayment(id, userId);
-    if (!participant) throw new Error("Participant not found");
-
-    const event = new PaymentConfirmedEvent(id, {
-      expenseId: id,
-      userId,
-      shareAmount: participant.shareAmount,
-    });
-    await eventBus.publish(event);
 
     res.json(participant);
   }

@@ -42,14 +42,22 @@ export const corsConfig: CorsOptions = {
   
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "X-Dev-User-Id",
-    "X-Requested-With",
-    "X-Request-ID",
-    "Accept",
-  ],
+  allowedHeaders: isDevelopment
+    ? [
+        "Content-Type",
+        "Authorization",
+        "X-Dev-User-Id",
+        "X-Requested-With",
+        "X-Request-ID",
+        "Accept",
+      ]
+    : [
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "X-Request-ID",
+        "Accept",
+      ],
   
   exposedHeaders: [
     "X-Total-Count",

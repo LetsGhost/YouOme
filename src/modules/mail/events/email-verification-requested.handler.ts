@@ -2,7 +2,7 @@ import { EventHandler } from "../../common/messaging/event-handler";
 import { UserEmailVerificationRequestedEvent } from "../../user/events/user-email-verification-requested.event";
 import { mailservice } from "../service/mail.service";
 
-export class UserCreatedMailHandler extends EventHandler<UserEmailVerificationRequestedEvent> {
+export class EmailVerificationRequestedHandler extends EventHandler<UserEmailVerificationRequestedEvent> {
     getEventType(): string {
         return "user.email_verification_requested";
     }
@@ -17,4 +17,4 @@ export class UserCreatedMailHandler extends EventHandler<UserEmailVerificationRe
 
 }
 
-export const userCreatedMailHandler = new UserCreatedMailHandler();
+export const emailVerificationRequestedHandler = new EmailVerificationRequestedHandler();

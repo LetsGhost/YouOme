@@ -1,6 +1,10 @@
 import { BaseService } from "../../common/base/base.service";
 import { ExpenseParticipantModel } from "../model/expenseParticipant.model";
 import { ExpenseParticipantEntity } from "../entity/expenseParticipant.entity";
+import { eventBus } from "../../common/messaging/event-bus";
+import { PaymentSubmittedEvent } from "../events/payment-submitted.event";
+import { PaymentRejectedEvent } from "../events/payment-rejected.event";
+import { PaymentConfirmedEvent } from "../events/payment-confirmed.event";
 
 export class ExpenseParticipantService extends BaseService<ExpenseParticipantEntity> {
   constructor() {
@@ -35,6 +39,19 @@ export class ExpenseParticipantService extends BaseService<ExpenseParticipantEnt
       },
       { new: true }
     );
+
+    if (!updated) {
+      throw new Error("Participant not found");
+    }
+
+    const event = new PaymentSubmittedEvent(expenseId, {
+      expenseId,
+      userId,
+      comment,
+      submissionCount: updated.submissionCount || submissionCount,
+    });
+    await eventBus.publish(event);
+
     return updated;
   }
 
@@ -50,6 +67,18 @@ export class ExpenseParticipantService extends BaseService<ExpenseParticipantEnt
       },
       { new: true }
     );
+
+    if (!updated) {
+      throw new Error("Participant not found");
+    }
+
+    const event = new PaymentRejectedEvent(expenseId, {
+      expenseId,
+      userId,
+      submissionCount: updated.submissionCount || 0,
+    });
+    await eventBus.publish(event);
+
     return updated;
   }
 
@@ -65,6 +94,18 @@ export class ExpenseParticipantService extends BaseService<ExpenseParticipantEnt
       },
       { new: true }
     );
+
+    if (!updated) {
+      throw new Error("Participant not found");
+    }
+
+    const event = new PaymentConfirmedEvent(expenseId, {
+      expenseId,
+      userId,
+      shareAmount: updated.shareAmount,
+    });
+    await eventBus.publish(event);
+
     return updated;
   }
 

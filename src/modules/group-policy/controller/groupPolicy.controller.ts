@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 
 import { BaseController } from "../../common/base/base.controller";
 import { groupPolicyService } from "../service/groupPolicy.service";
-import { createGroupPolicySchema } from "../schema/groupPolicy.schema";
+import { createGroupPolicySchema, updateGroupPolicySchema } from "../schema/groupPolicy.schema";
 import { authenticate, AuthRequest } from "../../../middleware/auth.middleware";
 import { GroupAccessRequest, groupAccessMiddleware } from "../../../middleware/group-access.middleware";
 import { groupAccessService } from "../../group/service/group-access.service";
@@ -18,6 +18,8 @@ class GroupPolicyController extends BaseController {
     super();
     this.create = this.create.bind(this);
     this.getById = this.getById.bind(this);
+    this.getByGroup = this.getByGroup.bind(this);
+    this.updateByGroup = this.updateByGroup.bind(this);
   }
 
   protected routes(): void {
@@ -67,6 +69,66 @@ class GroupPolicyController extends BaseController {
      *         description: Group policy not found
      */
     this.router.get("/:id", authenticate, groupAccessMiddleware as any, this.getById);
+
+    /**
+     * @openapi
+     * /api/group-policys/group/{groupId}:
+     *   get:
+     *     summary: Get the policy for a group
+     *     tags: [Group Policies]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: groupId
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Group ID
+     *     responses:
+     *       200:
+     *         description: Group policy found
+     *       401:
+     *         description: Unauthorized
+     *       403:
+     *         description: Forbidden
+     *       404:
+     *         description: Group policy not found
+     */
+    this.router.get("/group/:groupId", authenticate, groupAccessMiddleware as any, this.getByGroup);
+
+    /**
+     * @openapi
+     * /api/group-policys/group/{groupId}:
+     *   patch:
+     *     summary: Update the policy for a group
+     *     tags: [Group Policies]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: groupId
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Group ID
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/UpdateGroupPolicyDTO'
+     *     responses:
+     *       200:
+     *         description: Group policy updated
+     *       401:
+     *         description: Unauthorized
+     *       403:
+     *         description: Forbidden
+     *       404:
+     *         description: Group policy not found
+     */
+    this.router.patch("/group/:groupId", authenticate, groupAccessMiddleware as any, this.updateByGroup);
   }
 
   private async create(req: AuthRequest, res: Response): Promise<void> {
@@ -97,7 +159,38 @@ class GroupPolicyController extends BaseController {
         res.status(403).json({ error: "Not authorized to view this policy" });
         return;
       }
-      
+
+      res.json(policy);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async getByGroup(req: GroupAccessRequest, res: Response): Promise<void> {
+    try {
+      if (!req.groupAccess?.isOwnerOrAdmin) {
+        res.status(403).json({ error: "Not authorized to view this policy" });
+        return;
+      }
+
+      const policy = await groupPolicyService.getByGroupId(req.params.groupId);
+      if (!policy) throw new Error("Policy not found for this group");
+
+      res.json(policy);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async updateByGroup(req: GroupAccessRequest, res: Response): Promise<void> {
+    try {
+      if (!req.groupAccess?.isOwnerOrAdmin) {
+        res.status(403).json({ error: "Not authorized to update this policy" });
+        return;
+      }
+
+      const dto = updateGroupPolicySchema.parse(req.body);
+      const policy = await groupPolicyService.updatePolicy(req.params.groupId, dto);
       res.json(policy);
     } catch (error) {
       throw error;

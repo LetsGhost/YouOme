@@ -72,3 +72,85 @@ The application is built with modular architecture where each feature is self-co
 - Logs are written to `logs/` and console.
 - Redis is optional but recommended for production deployments.
 - All controllers are automatically discovered and registered on startup.
+
+## Production (Docker)
+
+`docker-compose.prod.yml` (in this directory) runs the full stack behind an
+nginx reverse proxy with Let's Encrypt TLS: `nginx`, `backend`, `mongodb`,
+`redis`, and `certbot`. All commands below assume you're in `backend/` on the
+target server, with Docker + Docker Compose (v2, the `docker compose` plugin)
+installed.
+
+### 1. Required `.env`
+
+`docker-compose.prod.yml` reads `backend/.env` (via `env_file`) plus these
+`${VAR}` substitutions it expects directly:
+
+| Variable | Used for |
+|---|---|
+| `APP_URL` | passed to the backend as `APP_URL` |
+| `MONGO_USER` | Mongo root user (compose + Mongo URI) |
+| `MONGO_PASSWORD` | Mongo root password (compose + Mongo URI) |
+| `MONGO_DB` | Mongo database name (compose + Mongo URI) |
+| `REDIS_PASSWORD` | Redis auth password (compose + healthcheck) |
+
+These can live in `backend/.env` alongside the normal app variables (see
+`example.env`) - just make sure production values replace the dev defaults
+(`JWT_SECRET`, `JWT_REFRESH_SECRET`, `SYSTEM_ADMIN_EMAILS`, `ALLOWED_ORIGINS`,
+`RESEND_API_KEY`, etc. should all be real production secrets, not the
+placeholders in `example.env`). `NODE_ENV`/`PORT` are set directly in the
+compose file and don't need to be in `.env`.
+
+### 2. Build the frontend into `./static`
+
+The `nginx` service serves the frontend from `./static` (bind-mounted to
+`/var/www/static`), but nothing builds it there automatically. Run:
+
+```sh
+./deploy/build-frontend.sh
+```
+
+This runs `npm ci && npm run build` in `../frontend` (using
+`frontend/.env.production` for `VITE_API_BASE_URL`) and copies
+`frontend/dist/*` into `./static`. Re-run it whenever the frontend changes.
+
+### 3. First-time TLS bootstrap (chicken-and-egg)
+
+The HTTPS server block in `nginx/default.conf` needs a certificate that
+doesn't exist yet, but certbot needs nginx serving the ACME HTTP-01 challenge
+first. Before the very first `up`:
+
+1. Replace the `YOUR_DOMAIN` placeholder in `nginx/default.conf` and
+   `nginx/bootstrap.conf` with your real domain.
+2. Run the bootstrap helper, which temporarily swaps in the HTTP-only config,
+   starts nginx, requests the cert, then restores the full config:
+   ```sh
+   ./deploy/init-certbot.sh your-domain.com you@example.com
+   ```
+   (equivalent manual steps are documented in the comments at the top of
+   `deploy/init-certbot.sh` if you'd rather run them by hand.)
+
+**Renewal**: the certbot image's default command just prints help text and
+exits - it does not renew anything by itself. `docker-compose.prod.yml`
+overrides the `certbot` service's entrypoint with a loop that runs
+`certbot renew` every 12 hours (a no-op unless the cert is near expiry), so
+once the stack is up with `docker compose up -d`, renewal is automatic and no
+external cron/systemd timer is needed. nginx does **not** auto-reload on
+renewal - if you see cert warnings after a renewal, run
+`docker compose -f docker-compose.prod.yml restart nginx`.
+
+### 4. Bring the stack up
+
+```sh
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Day-to-day:
+
+```sh
+docker compose -f docker-compose.prod.yml logs -f            # tail all logs
+docker compose -f docker-compose.prod.yml logs -f backend    # a single service
+docker compose -f docker-compose.prod.yml restart nginx      # e.g. after a config/cert change
+docker compose -f docker-compose.prod.yml up -d --build backend  # redeploy backend only
+docker compose -f docker-compose.prod.yml down               # stop everything (keeps volumes)
+```

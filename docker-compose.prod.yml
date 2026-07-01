@@ -23,7 +23,7 @@ services:
 
   backend:
     build:
-      context: ./app
+      context: .
       dockerfile: Dockerfile
     container_name: youome-backend
     restart: unless-stopped
@@ -114,6 +114,15 @@ services:
     image: certbot/certbot
     container_name: youome-certbot
     restart: unless-stopped
+    # The certbot image's default CMD just prints help and exits - it does NOT
+    # renew certs on its own. This overrides it with a loop that attempts a
+    # renewal twice a day (certbot renew is a no-op unless a cert is within its
+    # renewal window, so this is safe to run frequently). The INITIAL cert must
+    # still be requested manually - see the "Production (Docker)" section of
+    # README.md / deploy/init-certbot.sh - `docker compose run --rm certbot
+    # certonly ...` bypasses this loop for that one-off command.
+    entrypoint: >
+      /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot

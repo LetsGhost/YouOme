@@ -2,8 +2,9 @@ import { Request, Response } from "express";
 
 import { BaseController } from "../../common/base/base.controller";
 import { notificationService } from "../service/notification.service";
-import { createNotificationSchema } from "../schema/notification.schema";
+import { createNotificationSchema, broadcastNotificationSchema } from "../schema/notification.schema";
 import { authenticate } from "../../../middleware/auth.middleware";
+import { authorize } from "../../../middleware/role.middleware";
 
 /**
  * @openapi
@@ -21,6 +22,7 @@ class NotificationController extends BaseController {
     this.markAllAsRead = this.markAllAsRead.bind(this);
     this.deleteNotification = this.deleteNotification.bind(this);
     this.clearNotifications = this.clearNotifications.bind(this);
+    this.broadcast = this.broadcast.bind(this);
   }
 
   protected routes(): void {
@@ -45,6 +47,31 @@ class NotificationController extends BaseController {
      *         description: Unauthorized
      */
     this.router.post("/", authenticate, this.create);
+
+    /**
+     * @openapi
+     * /api/notifications/broadcast:
+     *   post:
+     *     summary: Send a notification to every user (sysadmin only)
+     *     tags: [Notifications]
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/BroadcastNotificationDTO'
+     *     responses:
+     *       201:
+     *         description: Notification fanned out to all users
+     *       401:
+     *         description: Unauthorized
+     *       403:
+     *         description: Forbidden - Admin access required
+     */
+    this.router.post("/broadcast", authenticate, authorize("admin"), this.broadcast);
+
     this.router.get("/", authenticate, this.listForCurrentUser);
     this.router.patch("/read-all", authenticate, this.markAllAsRead);
     this.router.patch("/:id/read", authenticate, this.markAsRead);
@@ -81,6 +108,12 @@ class NotificationController extends BaseController {
     const dto = createNotificationSchema.parse(req.body);
     const note = await notificationService.createNotification(dto.userId, dto.type, dto.payload);
     res.status(201).json(note);
+  }
+
+  private async broadcast(req: Request, res: Response) {
+    const dto = broadcastNotificationSchema.parse(req.body);
+    const notes = await notificationService.broadcastToAllUsers(dto.title, dto.message);
+    res.status(201).json({ count: notes.length });
   }
 
   private async getById(req: Request, res: Response) {

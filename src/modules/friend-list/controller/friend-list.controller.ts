@@ -3,7 +3,7 @@ import { Response } from "express";
 import { BaseController } from "../../common/base/base.controller";
 import { AuthRequest, authenticate } from "../../../middleware/auth.middleware";
 import { friendListService } from "../service/friend-list.service";
-import { addFriendSchema, blockFriendSchema } from "../schema/friend-list.schema";
+import { blockFriendSchema } from "../schema/friend-list.schema";
 
 /**
  * @openapi
@@ -15,7 +15,6 @@ class FriendListController extends BaseController {
   constructor() {
     super();
     this.getFriendList = this.getFriendList.bind(this);
-    this.addFriend = this.addFriend.bind(this);
     this.removeFriend = this.removeFriend.bind(this);
     this.blockFriend = this.blockFriend.bind(this);
     this.checkFriendsStatus = this.checkFriendsStatus.bind(this);
@@ -42,34 +41,6 @@ class FriendListController extends BaseController {
      */
     this.router.get("/", authenticate, this.getFriendList);
     this.router.get("/summary", authenticate, this.getFriendSummaries);
-
-    /**
-     * @openapi
-     * /api/friend-list/add:
-     *   post:
-     *     summary: Add a friend to your friend list
-     *     tags: [Friend Lists]
-     *     security:
-     *       - bearerAuth: []
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             $ref: '#/components/schemas/AddFriendDTO'
-     *     responses:
-     *       200:
-     *         description: Friend added
-     *         content:
-     *           application/json:
-     *             schema:
-     *               $ref: '#/components/schemas/FriendList'
-     *       401:
-     *         description: Unauthorized
-     *       400:
-     *         description: Bad request
-     */
-    this.router.post("/add", authenticate, this.addFriend);
 
     /**
      * @openapi
@@ -175,17 +146,6 @@ class FriendListController extends BaseController {
 
     const friends = await friendListService.getFriendSummaries(userId);
     res.json(friends);
-  }
-
-  private async addFriend(req: AuthRequest, res: Response): Promise<void> {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
-
-    const dto = addFriendSchema.parse(req.body);
-    const friendList = await friendListService.addFriend(userId, dto.friendUserId);
-    res.status(201).json(friendList);
   }
 
   private async removeFriend(req: AuthRequest, res: Response): Promise<void> {

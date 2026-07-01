@@ -14,6 +14,11 @@ import {
 } from "../schema/auth.schema";
 import { logger } from "../../common/logger/logger";
 import { invalidateUserCache } from "../../../middleware/auth.middleware";
+import { redisService } from "../../redis/service/redis.service";
+import { isSystemAdminEmail } from "../../../utils/auth/system-admin.utils";
+
+const REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days, matches refresh token lifetime
+const REVOKED_REFRESH_PREFIX = "refresh:revoked:";
 
 export class AuthService {
   async login(data: LoginInput) {
@@ -35,8 +40,6 @@ export class AuthService {
     if (env.NODE_ENV === "development") {
       logger.info("Dev login token issued", {
         userId: user._id.toString(),
-        accessToken,
-        refreshToken,
       });
     }
 
@@ -45,7 +48,7 @@ export class AuthService {
         id: user._id.toString(),
         email: user.email,
         name: user.name,
-        role: user.role,
+        role: isSystemAdminEmail(user.email) ? "admin" : user.role,
         emailVerifiedAt: user.emailVerifiedAt ?? null,
       },
       accessToken,
@@ -106,7 +109,12 @@ export class AuthService {
     const payload = jwt.verify(
       refreshToken,
       env.JWT_REFRESH_SECRET
-    ) as JwtPayload;
+    ) as JwtPayload & { iat?: number };
+
+    const revokedAt = await redisService.get<number>(REVOKED_REFRESH_PREFIX + payload.sub);
+    if (revokedAt && payload.iat && payload.iat <= revokedAt) {
+      throw new Error("Unauthorized");
+    }
 
     const user = await userService.findById(payload.sub);
     if (!user) {
@@ -123,7 +131,13 @@ export class AuthService {
     };
   }
 
-  async logout() {
+  async logout(userId: string) {
+    await redisService.set(
+      REVOKED_REFRESH_PREFIX + userId,
+      Math.floor(Date.now() / 1000),
+      REFRESH_TOKEN_TTL_SECONDS
+    );
+
     return { message: "Logged out successfully" };
   }
 
@@ -137,7 +151,7 @@ export class AuthService {
       id: user._id.toString(),
       email: user.email,
       name: user.name,
-      role: user.role,
+      role: isSystemAdminEmail(user.email) ? "admin" : user.role,
       emailVerifiedAt: user.emailVerifiedAt ?? null,
     };
   }

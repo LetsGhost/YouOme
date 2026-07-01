@@ -3,6 +3,9 @@ import { NotificationModel } from "../model/notification.model";
 import { NotificationEntity } from "../entity/notification.entity";
 import { eventBus } from "../../common/messaging/event-bus";
 import { NotificationCreatedEvent } from "../events/notification-created.event";
+import { userService } from "../../user/service/user.service";
+
+const SYSTEM_ANNOUNCEMENT_TYPE = "system.announcement";
 
 export class NotificationService extends BaseService<NotificationEntity> {
   constructor() {
@@ -55,6 +58,21 @@ export class NotificationService extends BaseService<NotificationEntity> {
 
   async clearForUser(userId: string) {
     return this.model.deleteMany({ userId });
+  }
+
+  /**
+   * Sysadmin broadcast: fans a single announcement out as an individual
+   * notification document per current user, reusing the existing per-user
+   * notification path rather than introducing a separate broadcast model.
+   */
+  async broadcastToAllUsers(title: string, message: string) {
+    const users = await userService.findAll({});
+
+    return Promise.all(
+      users.map((user) =>
+        this.createNotification(user._id.toString(), SYSTEM_ANNOUNCEMENT_TYPE, { title, message })
+      )
+    );
   }
 }
 

@@ -48,3 +48,39 @@ export const createGroupPolicySchema = z.object({
 });
 
 export type CreateGroupPolicyDTO = z.infer<typeof createGroupPolicySchema>;
+
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     UpdateGroupPolicyDTO:
+ *       type: object
+ *       properties:
+ *         canMembersInvite:
+ *           type: boolean
+ *         canEditorsAddExpense:
+ *           type: boolean
+ *         canModeratorsAddExpense:
+ *           type: boolean
+ *         visibilityMode:
+ *           type: string
+ *           example: members
+ *         canViewParticipatedExpenseDetails:
+ *           type: boolean
+ *         requireReceiverConfirmationForSettlement:
+ *           type: boolean
+ *         allowMemberRoleSelfLeave:
+ *           type: boolean
+ */
+
+export const updateGroupPolicySchema = z.object({
+  canMembersInvite: z.boolean().optional(),
+  canEditorsAddExpense: z.boolean().optional(),
+  canModeratorsAddExpense: z.boolean().optional(),
+  visibilityMode: z.string().optional(),
+  canViewParticipatedExpenseDetails: z.boolean().optional(),
+  requireReceiverConfirmationForSettlement: z.boolean().optional(),
+  allowMemberRoleSelfLeave: z.boolean().optional(),
+});
+
+export type UpdateGroupPolicyDTO = z.infer<typeof updateGroupPolicySchema>;

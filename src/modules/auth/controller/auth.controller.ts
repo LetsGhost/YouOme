@@ -15,6 +15,7 @@ import { authenticate, AuthRequest } from "../../../middleware/auth.middleware";
 import { env } from "../../../config/env";
 import { userService } from "../../user/service/user.service";
 import { signAccessToken, signRefreshToken } from "../../common/auth/jwt";
+import { isSystemAdminEmail } from "../../../utils/auth/system-admin.utils";
 
 /**
  * @openapi
@@ -199,7 +200,8 @@ class AuthController extends BaseController {
   }
 
   private async logout(req: AuthRequest, res: Response) {
-    const result = await authService.logout();
+    const userId = req.user!.id;
+    const result = await authService.logout(userId);
 
     res.json(result);
   }
@@ -249,7 +251,7 @@ class AuthController extends BaseController {
           id: user._id.toString(),
           email: user.email,
           name: user.name,
-          role: user.role,
+          role: isSystemAdminEmail(user.email) ? "admin" : user.role,
           emailVerifiedAt: user.emailVerifiedAt ?? null,
         },
         accessToken: signAccessToken(payload),

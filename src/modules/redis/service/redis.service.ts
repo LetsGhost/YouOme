@@ -3,35 +3,47 @@ import { createClient, RedisClientType } from "redis";
 import { logger } from "../../common/logger/logger";
 import { redisConfig } from "../config/redis.config";
 
+const MAX_CONNECT_ATTEMPTS = 5;
+const INITIAL_RETRY_DELAY_MS = 1000;
+
 export class RedisService {
   private client: RedisClientType | null = null;
   private isConnected = false;
 
   async connect(): Promise<void> {
-    try {
-      const url = `redis://:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}/${redisConfig.db}`;
+    for (let attempt = 1; attempt <= MAX_CONNECT_ATTEMPTS; attempt++) {
+      try {
+        const url = `redis://:${redisConfig.password}@${redisConfig.host}:${redisConfig.port}/${redisConfig.db}`;
 
-      this.client = createClient({
-        url,
-      });
+        this.client = createClient({
+          url,
+        });
 
-      this.client.on("error", (err) =>
-        logger.error("Redis error", { error: err.message })
-      );
-      this.client.on("connect", () =>
-        logger.info("Redis connected", {
-          host: redisConfig.host,
-          port: redisConfig.port,
-        })
-      );
+        this.client.on("error", (err) =>
+          logger.error("Redis error", { error: err.message })
+        );
+        this.client.on("connect", () =>
+          logger.info("Redis connected", {
+            host: redisConfig.host,
+            port: redisConfig.port,
+          })
+        );
 
-      await this.client.connect();
-      this.isConnected = true;
-    } catch (error) {
-      logger.error("Failed to connect to Redis", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
+        await this.client.connect();
+        this.isConnected = true;
+        return;
+      } catch (error) {
+        logger.error(`Failed to connect to Redis (attempt ${attempt}/${MAX_CONNECT_ATTEMPTS})`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+
+        if (attempt === MAX_CONNECT_ATTEMPTS) {
+          throw error;
+        }
+
+        const delayMs = INITIAL_RETRY_DELAY_MS * 2 ** (attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
     }
   }
 

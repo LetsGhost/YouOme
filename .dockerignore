@@ -4,4 +4,10 @@ logs
 npm-debug.log
 Dockerfile
 docker-compose.yml
+docker-compose.prod.yml
 .env
+nginx
+static
+certbot
+deploy
+README.md
