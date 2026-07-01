@@ -112,8 +112,9 @@ export class UserService extends BaseService<UserEntity> {
       throw new Error("Verification code expired");
     }
 
-    const codeHash = this.hashEmailVerificationCode(code);
-    if (codeHash !== user.emailVerificationCodeHash) {
+    const codeHash = Buffer.from(this.hashEmailVerificationCode(code), "hex");
+    const storedHash = Buffer.from(user.emailVerificationCodeHash, "hex");
+    if (codeHash.length !== storedHash.length || !crypto.timingSafeEqual(codeHash, storedHash)) {
       throw new Error("Invalid verification code");
     }
 

@@ -54,7 +54,7 @@ class AuthController extends BaseController {
      *       401:
      *         description: Invalid credentials
      */
-    this.router.post("/login", this.login);
+    this.router.post("/login", this.wrap(this.login));
 
     /**
      * @openapi
@@ -74,7 +74,7 @@ class AuthController extends BaseController {
      *       400:
      *         description: Bad request
      */
-    this.router.post("/register", this.register);
+    this.router.post("/register", this.wrap(this.register));
 
     /**
      * @openapi
@@ -94,7 +94,7 @@ class AuthController extends BaseController {
      *       400:
      *         description: Invalid or expired verification code
      */
-    this.router.post("/verify-email", this.verifyEmail);
+    this.router.post("/verify-email", this.wrap(this.verifyEmail));
 
     /**
      * @openapi
@@ -114,7 +114,7 @@ class AuthController extends BaseController {
      *       400:
      *         description: Invalid request or code recently sent
      */
-    this.router.post("/resend-verification", this.resendVerification);
+    this.router.post("/resend-verification", this.wrap(this.resendVerification));
 
     /**
      * @openapi
@@ -134,7 +134,7 @@ class AuthController extends BaseController {
      *       401:
      *         description: Invalid refresh token
      */
-    this.router.post("/refresh", this.refreshToken);
+    this.router.post("/refresh", this.wrap(this.refreshToken));
 
     /**
      * @openapi
@@ -150,7 +150,7 @@ class AuthController extends BaseController {
      *       401:
      *         description: Unauthorized
      */
-    this.router.post("/logout", authenticate, this.logout);
+    this.router.post("/logout", authenticate, this.wrap(this.logout));
 
     /**
      * @openapi
@@ -166,7 +166,7 @@ class AuthController extends BaseController {
      *       401:
      *         description: Unauthorized
      */
-    this.router.get("/me", authenticate, this.getCurrentUser);
+    this.router.get("/me", authenticate, this.wrap(this.getCurrentUser));
 
     /**
      * @openapi
@@ -182,7 +182,7 @@ class AuthController extends BaseController {
      *       401:
      *         description: Unauthorized
      */
-    this.router.delete("/me", authenticate, this.deleteCurrentUser);
+    this.router.delete("/me", authenticate, this.wrap(this.deleteCurrentUser));
   }
 
   private async login(req: Request, res: Response) {

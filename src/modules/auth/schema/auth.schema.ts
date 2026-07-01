@@ -85,7 +85,7 @@ export const registerSchema = z.object({
 
 export const verifyEmailSchema = z.object({
   email: z.string().email("Invalid email address"),
-  code: z.string().length(6, "Verification code must be 6 digits"),
+  code: z.string().regex(/^\d{6}$/, "Verification code must be 6 digits"),
 });
 
 export const resendVerificationSchema = z.object({
