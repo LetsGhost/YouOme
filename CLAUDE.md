@@ -46,7 +46,7 @@ A **fully in-memory, single-process** pub/sub (`InMemoryMessageBus` / `eventBus`
 
 `registerEventHandlers()` auto-discovers every `events/*.handler.ts` file across modules (except `common`) and subscribes the exported handler instance to `handler.getEventType()`.
 
-Prefer this event bus for cross-module fan-out (notifications, mail, mirrored writes). Keep same-module persistence and authorization checks as direct synchronous service calls.
+Prefer this event bus for cross-module fan-out (notifications, mirrored writes). Keep same-module persistence and authorization checks as direct synchronous service calls.
 
 Known event flows (publisher → event → subscriber(s)):
 
