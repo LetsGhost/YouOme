@@ -2,6 +2,7 @@ import {
   ClientSession,
   HydratedDocument,
   Model,
+  QueryFilter,
   UpdateQuery,
 } from "mongoose";
 
@@ -46,5 +47,10 @@ export abstract class BaseService<T extends object> {
   async deleteById(id: string, session?: ClientSession | null) {
     const options = session ? { session } : {};
     return this.model.findByIdAndDelete(id, options);
+  }
+
+  async deleteMany(filter: QueryFilter<T>, session?: ClientSession | null) {
+    const options = session ? { session } : {};
+    return this.model.deleteMany(filter, options);
   }
 }

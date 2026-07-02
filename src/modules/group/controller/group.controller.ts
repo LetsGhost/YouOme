@@ -22,6 +22,7 @@ class GroupController extends BaseController {
     this.getById = this.getById.bind(this);
     this.getDebtBoard = this.getDebtBoard.bind(this);
     this.list = this.list.bind(this);
+    this.deleteGroup = this.deleteGroup.bind(this);
   }
 
   private serializeGroup(group: any) {
@@ -120,6 +121,33 @@ class GroupController extends BaseController {
      *         description: Forbidden
      */
     this.router.get("/:id/debts", authenticate, this.getDebtBoard);
+
+    /**
+     * @openapi
+     * /api/groups/{id}:
+     *   delete:
+     *     summary: Delete a group
+     *     tags: [Groups]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Group ID
+     *     responses:
+     *       200:
+     *         description: Group deleted
+     *       401:
+     *         description: Unauthorized
+     *       403:
+     *         description: Forbidden
+     *       404:
+     *         description: Group not found
+     */
+    this.router.delete("/:id", authenticate, this.deleteGroup);
   }
 
   private async create(req: AuthRequest, res: Response) {
@@ -177,6 +205,17 @@ class GroupController extends BaseController {
         expenses: expenseSnapshots,
       })
     );
+  }
+
+  private async deleteGroup(req: AuthRequest, res: Response) {
+    const groupId = req.params.id;
+
+    if (!groupId || groupId === "undefined" || !mongoose.Types.ObjectId.isValid(groupId)) {
+      throw new Error("Invalid group ID format");
+    }
+
+    const result = await groupService.deleteGroup(groupId, req.user!.id);
+    res.json(result);
   }
 
   private async getDebtBoard(req: AuthRequest, res: Response) {

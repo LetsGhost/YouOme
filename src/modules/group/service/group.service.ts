@@ -4,6 +4,8 @@ import { GroupEntity } from "../entity/group.entity";
 import { eventBus } from "../../common/messaging/event-bus";
 import { GroupCreatedEvent } from "../events/group-created.event";
 import { groupMemberService } from "../../group-member/service/groupMember.service";
+import { groupInviteService } from "../../group-invite/service/groupInvite.service";
+import { groupPolicyService } from "../../group-policy/service/groupPolicy.service";
 import { expenseService } from "../../expense/service/expense.service";
 import { expenseParticipantService } from "../../expense-participant/service/expenseParticipant.service";
 import { userService } from "../../user/service/user.service";
@@ -62,6 +64,28 @@ export class GroupService extends BaseService<GroupEntity> {
     await eventBus.publish(event);
 
     return group;
+  }
+
+  async deleteGroup(groupId: string, userId: string) {
+    const group = await this.findById(groupId);
+
+    if (!group) {
+      throw new Error("Group not found");
+    }
+
+    if (group.createdByUserId !== userId) {
+      throw new Error("Only the group owner can delete this group");
+    }
+
+    await Promise.all([
+      groupMemberService.deleteMany({ groupId }),
+      groupInviteService.deleteMany({ groupId }),
+      groupPolicyService.deleteMany({ groupId }),
+    ]);
+
+    await this.deleteById(groupId);
+
+    return { message: "Group deleted successfully" };
   }
 
   async findAccessibleGroups(userId: string) {

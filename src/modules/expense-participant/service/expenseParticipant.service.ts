@@ -113,6 +113,24 @@ export class ExpenseParticipantService extends BaseService<ExpenseParticipantEnt
     return this.model.find({ expenseId });
   }
 
+  async hasSubmittedPayment(expenseId: string) {
+    const count = await this.model.countDocuments({ expenseId, status: { $ne: "pending" } });
+    return count > 0;
+  }
+
+  async rescaleShares(expenseId: string, ratio: number) {
+    const participants = await this.getByExpense(expenseId);
+
+    await Promise.all(
+      participants.map((participant) =>
+        this.model.updateOne(
+          { _id: participant._id },
+          { $set: { shareAmount: Math.round(participant.shareAmount * ratio * 100) / 100 } }
+        )
+      )
+    );
+  }
+
   async allConfirmed(expenseId: string) {
     const pending = await this.model.countDocuments({
       expenseId,

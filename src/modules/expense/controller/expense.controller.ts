@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 
 import { BaseController } from "../../common/base/base.controller";
 import { expenseService } from "../service/expense.service";
-import { createExpenseSchema } from "../schema/expense.schema";
+import { createExpenseSchema, updateExpenseSchema } from "../schema/expense.schema";
 import { authenticate } from "../../../middleware/auth.middleware";
 import { AuthRequest } from "../../../middleware/auth.middleware";
 import { expenseParticipantService } from "../../expense-participant/service/expenseParticipant.service";
@@ -19,6 +19,7 @@ class ExpenseController extends BaseController {
     super();
     this.create = this.create.bind(this);
     this.getById = this.getById.bind(this);
+    this.update = this.update.bind(this);
     this.submitPayment = this.submitPayment.bind(this);
     this.rejectPayment = this.rejectPayment.bind(this);
     this.confirmPayment = this.confirmPayment.bind(this);
@@ -72,6 +73,39 @@ class ExpenseController extends BaseController {
      *         description: Expense not found
      */
     this.router.get("/:id", authenticate, this.getById);
+
+    /**
+     * @openapi
+     * /api/expenses/{id}:
+     *   patch:
+     *     summary: Edit an expense (creator only, before any payment is submitted)
+     *     tags: [Expenses]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Expense ID
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/UpdateExpenseDTO'
+     *     responses:
+     *       200:
+     *         description: Expense updated
+     *       400:
+     *         description: Not authorized or a payment has already been submitted
+     *       401:
+     *         description: Unauthorized
+     *       404:
+     *         description: Expense not found
+     */
+    this.router.patch("/:id", authenticate, this.wrap(this.update));
 
     /**
      * @openapi
@@ -224,6 +258,12 @@ class ExpenseController extends BaseController {
     if (!expense) throw new Error("Expense not found");
     const participants = await expenseParticipantService.getByExpense(req.params.id);
     res.json({ expense, participants });
+  }
+
+  private async update(req: AuthRequest, res: Response) {
+    const dto = updateExpenseSchema.parse(req.body);
+    const expense = await expenseService.updateExpense(req.params.id, req.user!.id, dto);
+    res.json(expense);
   }
 
   private async submitPayment(req: Request, res: Response) {

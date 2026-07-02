@@ -95,5 +95,30 @@ export const submitPaymentSchema = z.object({
   comment: z.string().optional(),
 });
 
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     UpdateExpenseDTO:
+ *       type: object
+ *       properties:
+ *         title:
+ *           type: string
+ *           minLength: 1
+ *         totalAmount:
+ *           type: number
+ *           minimum: 0
+ *         note:
+ *           type: string
+ */
+export const updateExpenseSchema = z
+  .object({
+    title: z.string().min(1).optional(),
+    totalAmount: z.number().positive().optional(),
+    note: z.string().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, { message: "At least one field must be provided" });
+
 export type CreateExpenseDTO = z.infer<typeof createExpenseSchema>;
 export type SubmitPaymentDTO = z.infer<typeof submitPaymentSchema>;
+export type UpdateExpenseDTO = z.infer<typeof updateExpenseSchema>;

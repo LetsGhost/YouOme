@@ -4,6 +4,8 @@ import { ExpenseEntity } from "../entity/expense.entity";
 import { eventBus } from "../../common/messaging/event-bus";
 import { ExpenseCreatedEvent } from "../events/expense-created.event";
 import { ExpenseCreatedWithParticipantsEvent } from "../events/expense-created-with-participants.event";
+import { expenseParticipantService } from "../../expense-participant/service/expenseParticipant.service";
+import { UpdateExpenseDTO } from "../schema/expense.schema";
 
 export class ExpenseService extends BaseService<ExpenseEntity> {
   constructor() {
@@ -51,6 +53,40 @@ export class ExpenseService extends BaseService<ExpenseEntity> {
     }
 
     return expense;
+  }
+
+  async updateExpense(expenseId: string, userId: string, updates: UpdateExpenseDTO) {
+    const expense = await this.findById(expenseId);
+
+    if (!expense) {
+      throw new Error("Expense not found");
+    }
+
+    if (expense.createdByUserId !== userId) {
+      throw new Error("Only the expense creator can edit this expense");
+    }
+
+    const hasSubmittedPayment = await expenseParticipantService.hasSubmittedPayment(expenseId);
+    if (hasSubmittedPayment) {
+      throw new Error("This expense can no longer be edited because a payment has already been submitted");
+    }
+
+    const previousTotalAmount = expense.totalAmount;
+    const updated = await this.updateById(expenseId, updates);
+
+    if (!updated) {
+      throw new Error("Expense not found");
+    }
+
+    if (
+      typeof updates.totalAmount === "number" &&
+      updates.totalAmount !== previousTotalAmount &&
+      previousTotalAmount > 0
+    ) {
+      await expenseParticipantService.rescaleShares(expenseId, updates.totalAmount / previousTotalAmount);
+    }
+
+    return updated;
   }
 }
 
