@@ -25,7 +25,7 @@ export const env = {
 
   // RATE LIMITING
   API_RATE_LIMIT_WINDOW_MS: Number(process.env.API_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  API_RATE_LIMIT_MAX: Number(process.env.API_RATE_LIMIT_MAX) || 300,
+  API_RATE_LIMIT_MAX: Number(process.env.API_RATE_LIMIT_MAX) || 1000,
   AUTH_RATE_LIMIT_WINDOW_MS: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  AUTH_RATE_LIMIT_MAX: Number(process.env.AUTH_RATE_LIMIT_MAX) || 10,
+  AUTH_RATE_LIMIT_MAX: Number(process.env.AUTH_RATE_LIMIT_MAX) || 20,
 };
