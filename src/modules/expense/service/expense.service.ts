@@ -12,6 +12,16 @@ export class ExpenseService extends BaseService<ExpenseEntity> {
     super(ExpenseModel);
   }
 
+  async findByGroupPaginated(groupId: string, page: number, limit: number) {
+    const skip = (page - 1) * limit;
+    const [items, total] = await Promise.all([
+      this.model.find({ groupId }).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      this.model.countDocuments({ groupId }),
+    ]);
+
+    return { items, total };
+  }
+
   async createExpense(
     groupId: string,
     createdByUserId: string,
