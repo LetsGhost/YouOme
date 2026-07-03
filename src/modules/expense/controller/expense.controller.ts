@@ -352,6 +352,11 @@ class ExpenseController extends BaseController {
 
     const participant = await expenseParticipantService.confirmPayment(id, userId);
 
+    const allConfirmed = await expenseParticipantService.allConfirmed(id);
+    if (allConfirmed) {
+      await expenseService.updateById(id, { status: "settled", settledAt: new Date() });
+    }
+
     res.json(participant);
   }
 
