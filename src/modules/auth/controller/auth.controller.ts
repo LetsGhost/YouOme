@@ -2,7 +2,13 @@ import { Request, Response } from "express";
 
 import { BaseController } from "../../common/base/base.controller";
 import { authService } from "../service/auth.service";
-import { loginSchema, refreshTokenSchema, registerSchema } from "../schema/auth.schema";
+import {
+  loginSchema,
+  refreshTokenSchema,
+  registerSchema,
+  updateProfileSchema,
+  changePasswordSchema,
+} from "../schema/auth.schema";
 import { authenticate, AuthRequest } from "../../../middleware/auth.middleware";
 import { userService } from "../../user/service/user.service";
 import { signAccessToken, signRefreshToken } from "../../common/auth/jwt";
@@ -22,6 +28,8 @@ class AuthController extends BaseController {
     this.logout = this.logout.bind(this);
     this.getCurrentUser = this.getCurrentUser.bind(this);
     this.deleteCurrentUser = this.deleteCurrentUser.bind(this);
+    this.updateProfile = this.updateProfile.bind(this);
+    this.changePassword = this.changePassword.bind(this);
   }
 
   protected routes(): void {
@@ -132,6 +140,54 @@ class AuthController extends BaseController {
      *         description: Unauthorized
      */
     this.router.delete("/me", authenticate, this.wrap(this.deleteCurrentUser));
+
+    /**
+     * @openapi
+     * /api/auth/me:
+     *   patch:
+     *     summary: Update the current user's name and/or email
+     *     tags: [Auth]
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/UpdateProfileDTO'
+     *     responses:
+     *       200:
+     *         description: Profile updated successfully
+     *       400:
+     *         description: Bad request
+     *       401:
+     *         description: Unauthorized
+     */
+    this.router.patch("/me", authenticate, this.wrap(this.updateProfile));
+
+    /**
+     * @openapi
+     * /api/auth/me/password:
+     *   post:
+     *     summary: Change the current user's password
+     *     tags: [Auth]
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/ChangePasswordDTO'
+     *     responses:
+     *       200:
+     *         description: Password changed successfully
+     *       400:
+     *         description: Bad request (e.g. incorrect current password)
+     *       401:
+     *         description: Unauthorized
+     */
+    this.router.post("/me/password", authenticate, this.wrap(this.changePassword));
   }
 
   private async login(req: Request, res: Response) {
@@ -165,6 +221,22 @@ class AuthController extends BaseController {
   private async deleteCurrentUser(req: AuthRequest, res: Response) {
     const userId = req.user!.id;
     const result = await authService.deleteCurrentUser(userId);
+
+    res.json(result);
+  }
+
+  private async updateProfile(req: AuthRequest, res: Response) {
+    const userId = req.user!.id;
+    const dto = updateProfileSchema.parse(req.body);
+    const result = await authService.updateProfile(userId, dto);
+
+    res.json(result);
+  }
+
+  private async changePassword(req: AuthRequest, res: Response) {
+    const userId = req.user!.id;
+    const dto = changePasswordSchema.parse(req.body);
+    const result = await authService.changePassword(userId, dto.currentPassword, dto.newPassword);
 
     res.json(result);
   }

@@ -77,6 +77,36 @@ export class UserService extends BaseService<UserEntity> {
     }
     return user;
   }
+
+  async updateProfile(userId: string, updates: { name?: string; email?: string }) {
+    if (updates.email && (await this.model.exists({ email: updates.email, _id: { $ne: userId } }))) {
+      throw new Error("Email already exists");
+    }
+
+    const user = await this.updateById(userId, updates);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    return user;
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.model.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      throw new Error("Current password is incorrect");
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    return user;
+  }
 }
 
 export const userService = new UserService();

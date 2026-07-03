@@ -7,7 +7,7 @@ import {
   JwtPayload,
 } from "../../common/auth/jwt";
 import { env } from "../../../config/env";
-import { LoginInput } from "../schema/auth.schema";
+import { LoginInput, UpdateProfileInput } from "../schema/auth.schema";
 import { logger } from "../../common/logger/logger";
 import { invalidateUserCache } from "../../../middleware/auth.middleware";
 import { redisService } from "../../redis/service/redis.service";
@@ -112,6 +112,26 @@ export class AuthService {
     return {
       message: "Account deleted successfully",
     };
+  }
+
+  async updateProfile(userId: string, updates: UpdateProfileInput) {
+    const user = await userService.updateProfile(userId, updates);
+    await invalidateUserCache(userId);
+
+    return {
+      id: user._id.toString(),
+      email: user.email,
+      name: user.name,
+      role: isSystemAdminEmail(user.email) ? "admin" : user.role,
+      avatarUrl: user.avatarKey ? `/api/users/${user._id.toString()}/avatar` : null,
+    };
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    await userService.changePassword(userId, currentPassword, newPassword);
+    await invalidateUserCache(userId);
+
+    return { message: "Password changed successfully" };
   }
 }
 
