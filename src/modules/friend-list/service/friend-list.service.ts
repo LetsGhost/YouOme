@@ -48,6 +48,7 @@ export class FriendListService extends BaseService<FriendListEntity> {
           name: friendUser.name,
           email: friendUser.email,
           blocked: entry.blocked,
+          avatarUrl: friendUser.avatarKey ? `/api/users/${friendUser._id.toString()}/avatar` : null,
         };
       })
     );

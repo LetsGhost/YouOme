@@ -1,13 +1,17 @@
 import { Response } from "express";
+import mongoose from "mongoose";
 
 import { BaseController } from "../../common/base/base.controller";
 import { authenticate, AuthRequest } from "../../../middleware/auth.middleware";
+import { avatarUpload } from "../../../middleware/upload.middleware";
 import { groupService } from "../service/group.service";
 import { createGroupSchema } from "../schema/group.schema";
-import mongoose from "mongoose";
 import { groupAccessService } from "../service/group-access.service";
 import { expenseService } from "../../expense/service/expense.service";
 import { expenseParticipantService } from "../../expense-participant/service/expenseParticipant.service";
+import { storageService } from "../../common/storage/storage.service";
+
+type AvatarUploadRequest = AuthRequest & { file?: Express.Multer.File };
 
 /**
  * @openapi
@@ -27,13 +31,20 @@ class GroupController extends BaseController {
     this.getDebtBoard = this.getDebtBoard.bind(this);
     this.list = this.list.bind(this);
     this.deleteGroup = this.deleteGroup.bind(this);
+    this.uploadAvatar = this.uploadAvatar.bind(this);
+    this.deleteAvatar = this.deleteAvatar.bind(this);
+    this.getAvatar = this.getAvatar.bind(this);
   }
 
   private serializeGroup(group: any) {
     const plainGroup = typeof group?.toObject === "function" ? group.toObject() : { ...group };
+    const id = plainGroup._id?.toString?.() ?? plainGroup.id;
+    const { avatarKey, ...rest } = plainGroup;
+
     return {
-      ...plainGroup,
-      id: plainGroup._id?.toString?.() ?? plainGroup.id,
+      ...rest,
+      id,
+      avatarUrl: avatarKey ? `/api/groups/${id}/avatar` : null,
     };
   }
 
@@ -187,6 +198,90 @@ class GroupController extends BaseController {
      *         description: Group not found
      */
     this.router.delete("/:id", authenticate, this.deleteGroup);
+
+    /**
+     * @openapi
+     * /api/groups/{id}/avatar:
+     *   post:
+     *     summary: Upload/replace a group's avatar (owner/admin only)
+     *     tags: [Groups]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         multipart/form-data:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               avatar:
+     *                 type: string
+     *                 format: binary
+     *     responses:
+     *       200:
+     *         description: Avatar uploaded
+     *       401:
+     *         description: Unauthorized
+     *       403:
+     *         description: Forbidden
+     */
+    this.router.post("/:id/avatar", authenticate, avatarUpload, this.uploadAvatar);
+
+    /**
+     * @openapi
+     * /api/groups/{id}/avatar:
+     *   delete:
+     *     summary: Remove a group's avatar (owner/admin only)
+     *     tags: [Groups]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *     responses:
+     *       200:
+     *         description: Avatar removed
+     *       401:
+     *         description: Unauthorized
+     *       403:
+     *         description: Forbidden
+     */
+    this.router.delete("/:id/avatar", authenticate, this.deleteAvatar);
+
+    /**
+     * @openapi
+     * /api/groups/{id}/avatar:
+     *   get:
+     *     summary: Stream a group's avatar image
+     *     tags: [Groups]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *     responses:
+     *       200:
+     *         description: Avatar image bytes
+     *       401:
+     *         description: Unauthorized
+     *       403:
+     *         description: Forbidden
+     *       404:
+     *         description: No avatar set
+     */
+    this.router.get("/:id/avatar", authenticate, this.getAvatar);
   }
 
   private async create(req: AuthRequest, res: Response) {
@@ -282,6 +377,56 @@ class GroupController extends BaseController {
     await groupAccessService.assertMember(groupId, req.user!.id);
     const board = await groupService.findDebtBoard(groupId, req.user!.id);
     res.json(board);
+  }
+
+  private async uploadAvatar(req: AvatarUploadRequest, res: Response) {
+    const groupId = req.params.id;
+
+    if (!groupId || !mongoose.Types.ObjectId.isValid(groupId)) {
+      throw new Error("Invalid group ID format");
+    }
+    if (!req.file) {
+      throw new Error("No image file provided");
+    }
+
+    await groupAccessService.assertOwnerOrAdmin(groupId, req.user!.id);
+    const group = await groupService.setAvatar(groupId, req.file.buffer);
+    if (!group) throw new Error("Group not found");
+
+    res.json(this.serializeGroup(group));
+  }
+
+  private async deleteAvatar(req: AuthRequest, res: Response) {
+    const groupId = req.params.id;
+
+    if (!groupId || !mongoose.Types.ObjectId.isValid(groupId)) {
+      throw new Error("Invalid group ID format");
+    }
+
+    await groupAccessService.assertOwnerOrAdmin(groupId, req.user!.id);
+    const group = await groupService.removeAvatar(groupId);
+    if (!group) throw new Error("Group not found");
+
+    res.json(this.serializeGroup(group));
+  }
+
+  private async getAvatar(req: AuthRequest, res: Response) {
+    const groupId = req.params.id;
+
+    if (!groupId || !mongoose.Types.ObjectId.isValid(groupId)) {
+      throw new Error("Invalid group ID format");
+    }
+
+    await groupAccessService.assertMember(groupId, req.user!.id);
+    const group = await groupService.findById(groupId);
+    if (!group?.avatarKey) {
+      throw new Error("Avatar not found");
+    }
+
+    const object = await storageService.getObject(group.avatarKey);
+    res.setHeader("Content-Type", object.contentType || "image/webp");
+    res.setHeader("Cache-Control", "private, max-age=86400");
+    object.body.on("error", () => res.destroy()).pipe(res);
   }
 }
 

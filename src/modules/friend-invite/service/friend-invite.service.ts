@@ -46,6 +46,7 @@ export class FriendService extends BaseService<FriendInviteEntity> {
             toUserId: toUser._id.toString(),
             fromUserEmail: sender?.email ?? "",
             fromUserName: sender?.name ?? sender?.email ?? "Someone",
+            fromUserAvatarUrl: sender?.avatarKey ? `/api/users/${fromUserId}/avatar` : null,
         });
 
         await eventBus.publish(event);

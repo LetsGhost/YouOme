@@ -1,0 +1,36 @@
+# Garage (S3-compatible object storage) config - single node, low-resource setup.
+#
+# Copy this to garage.toml (gitignored, same as .env) and fill in the two
+# secrets below before first run:
+#
+#   cp garage.toml.example garage.toml
+#   # then replace rpc_secret and admin_token, e.g. via:
+#   openssl rand -hex 32
+#
+# Used by both ../docker-compose.yml (dev) and ../../infra/docker-compose.prod.yml
+# (prod), mounted read-only at /etc/garage.toml. One config file, one source of
+# truth, since both stacks run a single Garage node.
+#
+# replication_factor = 1 means no redundancy (one copy of every object) - the
+# right tradeoff for a single small VPS with limited disk. If you ever add a
+# second node/disk, bump this and re-run `garage layout` (see
+# ../../infra/deploy/init-garage.sh).
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "sqlite"
+
+replication_factor = 1
+
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "garage:3901"
+rpc_secret = "replace-with-openssl-rand-hex-32-output"
+
+[s3_api]
+s3_region = "garage"
+api_bind_addr = "[::]:3900"
+root_domain = ".s3.garage.localhost"
+
+[admin]
+api_bind_addr = "[::]:3903"
+admin_token = "replace-with-a-different-openssl-rand-hex-32-output"

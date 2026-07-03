@@ -34,6 +34,10 @@ import { z } from "zod";
  *         role:
  *           type: string
  *           example: user
+ *         avatarUrl:
+ *           type: string
+ *           nullable: true
+ *           example: /api/users/507f1f77bcf86cd799439011/avatar
  *         createdAt:
  *           type: string
  *           format: date-time

@@ -9,12 +9,15 @@ import { groupPolicyService } from "../../group-policy/service/groupPolicy.servi
 import { expenseService } from "../../expense/service/expense.service";
 import { expenseParticipantService } from "../../expense-participant/service/expenseParticipant.service";
 import { userService } from "../../user/service/user.service";
+import { storageService } from "../../common/storage/storage.service";
+import { processAvatarImage } from "../../common/storage/image.util";
 
 type DebtBoardParticipant = {
   id: string;
   userId: string;
   name: string;
   email?: string;
+  avatarUrl?: string | null;
   shareAmount: number;
   status: string;
   submissionCount: number;
@@ -88,6 +91,32 @@ export class GroupService extends BaseService<GroupEntity> {
     return { message: "Group deleted successfully" };
   }
 
+  async setAvatar(groupId: string, fileBuffer: Buffer) {
+    const group = await this.findById(groupId);
+    if (!group) {
+      throw new Error("Group not found");
+    }
+
+    const { buffer, contentType, extension } = await processAvatarImage(fileBuffer);
+    const key = `groups/${groupId}.${extension}`;
+
+    await storageService.uploadObject(key, buffer, contentType);
+    return this.updateById(groupId, { avatarKey: key });
+  }
+
+  async removeAvatar(groupId: string) {
+    const group = await this.findById(groupId);
+    if (!group) {
+      throw new Error("Group not found");
+    }
+
+    if (group.avatarKey) {
+      await storageService.deleteObject(group.avatarKey);
+    }
+
+    return this.updateById(groupId, { $unset: { avatarKey: "" } });
+  }
+
   async findAccessibleGroups(userId: string) {
     const ownedGroups = await this.findAll({ createdByUserId: userId });
     const memberships = await groupMemberService.findAll({ userId });
@@ -148,6 +177,11 @@ export class GroupService extends BaseService<GroupEntity> {
       return user?.name || user?.email || "Someone";
     };
 
+    const resolveAvatarUrl = (userId: string) => {
+      const user = userMap.get(userId);
+      return user?.avatarKey ? `/api/users/${userId}/avatar` : null;
+    };
+
     return {
       groupId: group._id.toString(),
       groupName: group.name,
@@ -175,6 +209,7 @@ export class GroupService extends BaseService<GroupEntity> {
             userId: participant.userId,
             name: resolveName(participant.userId),
             email: userMap.get(participant.userId)?.email,
+            avatarUrl: resolveAvatarUrl(participant.userId),
             shareAmount: participant.shareAmount,
             status: participant.status,
             submissionCount: participant.submissionCount,

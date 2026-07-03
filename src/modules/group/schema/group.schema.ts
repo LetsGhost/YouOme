@@ -28,6 +28,10 @@ import { z } from "zod";
  *           type: string
  *         baseCurrency:
  *           type: string
+ *         avatarUrl:
+ *           type: string
+ *           nullable: true
+ *           example: /api/groups/507f1f77bcf86cd799439011/avatar
  */
 
 export const createGroupSchema = z.object({

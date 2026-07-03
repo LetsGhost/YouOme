@@ -20,6 +20,7 @@ export class FriendInviteCreatedNotificationHandler extends EventHandler<FriendI
       fromUserId: event.payload.fromUserId,
       fromUserEmail: event.payload.fromUserEmail,
       fromUserName: event.payload.fromUserName,
+      fromUserAvatarUrl: event.payload.fromUserAvatarUrl,
     });
   }
 }

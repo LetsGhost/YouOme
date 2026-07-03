@@ -18,10 +18,17 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-your_password}
       BYPASS_AUTH: ${BYPASS_AUTH:-true}
       DISABLE_EMAIL_VERIFICATION: ${DISABLE_EMAIL_VERIFICATION:-true}
+      GARAGE_ENDPOINT: http://garage:3900
+      GARAGE_REGION: garage
+      GARAGE_BUCKET: ${GARAGE_BUCKET:-avatars}
+      GARAGE_ACCESS_KEY_ID: ${GARAGE_ACCESS_KEY_ID:-}
+      GARAGE_SECRET_ACCESS_KEY: ${GARAGE_SECRET_ACCESS_KEY:-}
     depends_on:
       mongo:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      garage:
         condition: service_healthy
     networks:
       - youome-network
@@ -68,9 +75,38 @@ services:
       timeout: 5s
       retries: 5
 
+  # S3-compatible object storage (avatars/group images). Needs ./garage/garage.toml
+  # (gitignored - copy from garage.toml.example and fill in the two secrets first
+  # run). Run ./garage/init-garage.ps1 (PowerShell) once after first `up` to
+  # bootstrap the layout/bucket/key - see that script's header for details.
+  # (infra/deploy/init-garage.sh is the equivalent for the prod stack.)
+  garage:
+    image: dxflrs/garage:v1.0.1
+    container_name: youome-garage
+    restart: unless-stopped
+    ports:
+      - "3900:3900" # S3 API
+      - "3903:3903" # admin API (layout/key/bucket management)
+    volumes:
+      - ./garage/garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    networks:
+      - youome-network
+    healthcheck:
+      # The image is FROM scratch (static binary only, no shell/wget/curl), so
+      # the healthcheck has to exec the garage binary itself rather than curl
+      # an HTTP endpoint.
+      test: ["CMD", "/garage", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   mongo-data:
   redis-data:
+  garage-meta:
+  garage-data:
 
 networks:
   youome-network:

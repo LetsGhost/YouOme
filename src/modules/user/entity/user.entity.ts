@@ -23,4 +23,7 @@ export class UserEntity extends BaseModel {
 
     @prop({ default: true })
     emailNotificationsEnabled!: boolean;
+
+    @prop()
+    avatarKey?: string;
 }

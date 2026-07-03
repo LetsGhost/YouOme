@@ -17,4 +17,7 @@ export class GroupEntity extends BaseModel {
 
   @prop()
   deletedAt?: Date;
+
+  @prop()
+  avatarKey?: string;
 }

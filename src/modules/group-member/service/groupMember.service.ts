@@ -10,6 +10,7 @@ export type GroupMemberSummary = {
   name: string;
   email?: string;
   avatar?: string;
+  avatarUrl?: string | null;
   role?: string;
 };
 
@@ -54,6 +55,7 @@ export class GroupMemberService extends BaseService<GroupMemberEntity> {
           name: user.name,
           email: user.email,
           role: member.role,
+          avatarUrl: user.avatarKey ? `/api/users/${user._id.toString()}/avatar` : null,
         } satisfies GroupMemberSummary;
       })
     );

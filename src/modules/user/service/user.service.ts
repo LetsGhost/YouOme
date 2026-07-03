@@ -5,6 +5,8 @@ import { UserModel } from "../model/user.model";
 import { UserEntity } from "../entity/user.entity";
 import { eventBus } from "../../common/messaging/event-bus";
 import { UserCreatedEvent } from "../events/user-created.event";
+import { storageService } from "../../common/storage/storage.service";
+import { processAvatarImage } from "../../common/storage/image.util";
 
 export class UserService extends BaseService<UserEntity> {
   constructor() {
@@ -36,6 +38,32 @@ export class UserService extends BaseService<UserEntity> {
     await eventBus.publish(event);
 
     return user;
+  }
+
+  async setAvatar(userId: string, fileBuffer: Buffer) {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const { buffer, contentType, extension } = await processAvatarImage(fileBuffer);
+    const key = `users/${userId}.${extension}`;
+
+    await storageService.uploadObject(key, buffer, contentType);
+    return this.updateById(userId, { avatarKey: key });
+  }
+
+  async removeAvatar(userId: string) {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (user.avatarKey) {
+      await storageService.deleteObject(user.avatarKey);
+    }
+
+    return this.updateById(userId, { $unset: { avatarKey: "" } });
   }
 
   async validateUser(email: string, password: string) {

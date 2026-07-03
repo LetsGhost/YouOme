@@ -5,6 +5,7 @@ type FriendInviteCreatedPayload = {
   toUserId: string;
   fromUserEmail: string;
   fromUserName: string;
+  fromUserAvatarUrl: string | null;
 };
 
 export class FriendInviteCreatedEvent extends BaseDomainEvent<FriendInviteCreatedPayload> {

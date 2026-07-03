@@ -41,6 +41,7 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: isSystemAdminEmail(user.email) ? "admin" : user.role,
+        avatarUrl: user.avatarKey ? `/api/users/${user._id.toString()}/avatar` : null,
       },
       accessToken,
       refreshToken,
@@ -94,6 +95,7 @@ export class AuthService {
       email: user.email,
       name: user.name,
       role: isSystemAdminEmail(user.email) ? "admin" : user.role,
+      avatarUrl: user.avatarKey ? `/api/users/${user._id.toString()}/avatar` : null,
     };
   }
 

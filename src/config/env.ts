@@ -28,4 +28,11 @@ export const env = {
   API_RATE_LIMIT_MAX: Number(process.env.API_RATE_LIMIT_MAX) || 1000,
   AUTH_RATE_LIMIT_WINDOW_MS: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
   AUTH_RATE_LIMIT_MAX: Number(process.env.AUTH_RATE_LIMIT_MAX) || 20,
+
+  // Garage (S3-compatible object storage) - avatars/group images
+  GARAGE_ENDPOINT: process.env.GARAGE_ENDPOINT || "http://localhost:3900",
+  GARAGE_REGION: process.env.GARAGE_REGION || "garage",
+  GARAGE_BUCKET: process.env.GARAGE_BUCKET || "avatars",
+  GARAGE_ACCESS_KEY_ID: process.env.GARAGE_ACCESS_KEY_ID || "",
+  GARAGE_SECRET_ACCESS_KEY: process.env.GARAGE_SECRET_ACCESS_KEY || "",
 };
