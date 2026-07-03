@@ -20,6 +20,7 @@ class ExpenseController extends BaseController {
     this.create = this.create.bind(this);
     this.getById = this.getById.bind(this);
     this.update = this.update.bind(this);
+    this.delete = this.delete.bind(this);
     this.submitPayment = this.submitPayment.bind(this);
     this.rejectPayment = this.rejectPayment.bind(this);
     this.confirmPayment = this.confirmPayment.bind(this);
@@ -106,6 +107,33 @@ class ExpenseController extends BaseController {
      *         description: Expense not found
      */
     this.router.patch("/:id", authenticate, this.wrap(this.update));
+
+    /**
+     * @openapi
+     * /api/expenses/{id}:
+     *   delete:
+     *     summary: Delete an expense (creator only, before any payment is submitted)
+     *     tags: [Expenses]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Expense ID
+     *     responses:
+     *       200:
+     *         description: Expense deleted
+     *       400:
+     *         description: Not authorized or a payment has already been submitted
+     *       401:
+     *         description: Unauthorized
+     *       404:
+     *         description: Expense not found
+     */
+    this.router.delete("/:id", authenticate, this.wrap(this.delete));
 
     /**
      * @openapi
@@ -264,6 +292,11 @@ class ExpenseController extends BaseController {
     const dto = updateExpenseSchema.parse(req.body);
     const expense = await expenseService.updateExpense(req.params.id, req.user!.id, dto);
     res.json(expense);
+  }
+
+  private async delete(req: AuthRequest, res: Response) {
+    const result = await expenseService.deleteExpense(req.params.id, req.user!.id);
+    res.json(result);
   }
 
   private async submitPayment(req: Request, res: Response) {

@@ -88,6 +88,28 @@ export class ExpenseService extends BaseService<ExpenseEntity> {
 
     return updated;
   }
+
+  async deleteExpense(expenseId: string, userId: string) {
+    const expense = await this.findById(expenseId);
+
+    if (!expense) {
+      throw new Error("Expense not found");
+    }
+
+    if (expense.createdByUserId !== userId) {
+      throw new Error("Only the expense creator can delete this expense");
+    }
+
+    const hasSubmittedPayment = await expenseParticipantService.hasSubmittedPayment(expenseId);
+    if (hasSubmittedPayment) {
+      throw new Error("This expense can no longer be deleted because a payment has already been submitted");
+    }
+
+    await expenseParticipantService.deleteMany({ expenseId });
+    await this.deleteById(expenseId);
+
+    return { message: "Expense deleted successfully" };
+  }
 }
 
 export const expenseService = new ExpenseService();
