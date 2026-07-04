@@ -57,6 +57,9 @@ import { z } from "zod";
  *           type: string
  *           format: email
  *           example: user@example.com
+ *         bio:
+ *           type: string
+ *           example: Splitting the rent, not the friendship.
  *     ChangePasswordDTO:
  *       type: object
  *       required:
@@ -96,6 +99,7 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   email: z.string().email("Invalid email address").optional(),
+  bio: z.string().max(240).optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

@@ -78,7 +78,7 @@ export class UserService extends BaseService<UserEntity> {
     return user;
   }
 
-  async updateProfile(userId: string, updates: { name?: string; email?: string }) {
+  async updateProfile(userId: string, updates: { name?: string; email?: string; bio?: string }) {
     if (updates.email && (await this.model.exists({ email: updates.email, _id: { $ne: userId } }))) {
       throw new Error("Email already exists");
     }

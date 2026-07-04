@@ -26,4 +26,7 @@ export class UserEntity extends BaseModel {
 
     @prop()
     avatarKey?: string;
+
+    @prop({ maxlength: 240 })
+    bio?: string;
 }

@@ -255,6 +255,8 @@ class AuthController extends BaseController {
         name: user.name,
         role: isSystemAdminEmail(user.email) ? "admin" : user.role,
         avatarUrl: null,
+        bio: null,
+        createdAt: user.createdAt,
       },
       accessToken: signAccessToken(payload),
       refreshToken: signRefreshToken(payload),

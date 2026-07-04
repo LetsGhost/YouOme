@@ -44,6 +44,8 @@ export class AuthService {
         name: user.name,
         role: isSystemAdminEmail(user.email) ? "admin" : user.role,
         avatarUrl: user.avatarKey ? `/api/users/${user._id.toString()}/avatar` : null,
+        bio: user.bio ?? null,
+        createdAt: user.createdAt,
       },
       accessToken,
       refreshToken,
@@ -98,6 +100,8 @@ export class AuthService {
       name: user.name,
       role: isSystemAdminEmail(user.email) ? "admin" : user.role,
       avatarUrl: user.avatarKey ? `/api/users/${user._id.toString()}/avatar` : null,
+      bio: user.bio ?? null,
+      createdAt: user.createdAt,
     };
   }
 
@@ -126,6 +130,8 @@ export class AuthService {
       name: user.name,
       role: isSystemAdminEmail(user.email) ? "admin" : user.role,
       avatarUrl: user.avatarKey ? `/api/users/${user._id.toString()}/avatar` : null,
+      bio: user.bio ?? null,
+      createdAt: user.createdAt,
     };
   }
 
