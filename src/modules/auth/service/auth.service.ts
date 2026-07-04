@@ -13,21 +13,23 @@ import { invalidateUserCache } from "../../../middleware/auth.middleware";
 import { redisService } from "../../redis/service/redis.service";
 import { isSystemAdminEmail } from "../../../utils/auth/system-admin.utils";
 
-const REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days, matches refresh token lifetime
+// Must cover the longest possible refresh token lifetime (remember-me), not just the default,
+// otherwise a revoked remember-me token could become valid again once this marker expires.
+const REFRESH_TOKEN_TTL_SECONDS = 60 * 24 * 60 * 60; // 60 days, matches REFRESH_TOKEN_TTL_REMEMBER_ME
 const REVOKED_REFRESH_PREFIX = "refresh:revoked:";
 
 export class AuthService {
   async login(data: LoginInput) {
-    const { email, password } = data;
+    const { email, password, rememberMe } = data;
 
     const user = await userService.validateUser(email, password);
     if (!user) {
       throw new Error("Invalid email or password");
     }
 
-    const payload: JwtPayload = { sub: user._id.toString(), role: user.role };
+    const payload: JwtPayload = { sub: user._id.toString(), role: user.role, rememberMe };
     const accessToken = signAccessToken(payload);
-    const refreshToken = signRefreshToken(payload);
+    const refreshToken = signRefreshToken(payload, rememberMe);
 
     if (env.NODE_ENV === "development") {
       logger.info("Dev login token issued", {
@@ -64,9 +66,9 @@ export class AuthService {
       throw new Error("User not found");
     }
 
-    const newPayload: JwtPayload = { sub: user._id.toString(), role: user.role };
+    const newPayload: JwtPayload = { sub: user._id.toString(), role: user.role, rememberMe: payload.rememberMe };
     const newAccessToken = signAccessToken(newPayload);
-    const newRefreshToken = signRefreshToken(newPayload);
+    const newRefreshToken = signRefreshToken(newPayload, payload.rememberMe);
 
     return {
       accessToken: newAccessToken,

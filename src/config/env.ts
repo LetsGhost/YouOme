@@ -7,6 +7,8 @@ export const env = {
   NODE_ENV: process.env.NODE_ENV || "development",
   JWT_SECRET: process.env.JWT_SECRET!,
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET!,
+  REFRESH_TOKEN_TTL: process.env.REFRESH_TOKEN_TTL || "7d",
+  REFRESH_TOKEN_TTL_REMEMBER_ME: process.env.REFRESH_TOKEN_TTL_REMEMBER_ME || "60d",
   BYPASS_AUTH: process.env.BYPASS_AUTH || "false",
   SYSTEM_ADMIN_EMAILS: process.env.SYSTEM_ADMIN_EMAILS || process.env.SYSTEM_ADMIN_EMAIL || "",
 

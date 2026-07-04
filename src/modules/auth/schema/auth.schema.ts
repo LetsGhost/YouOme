@@ -17,6 +17,10 @@ import { z } from "zod";
  *         password:
  *           type: string
  *           example: password123
+ *         rememberMe:
+ *           type: boolean
+ *           example: false
+ *           description: Issue a long-lived refresh token that keeps the user signed in.
  *     RefreshTokenDTO:
  *       type: object
  *       required:
@@ -71,6 +75,7 @@ import { z } from "zod";
 export const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
+  rememberMe: z.boolean().optional().default(false),
 });
 
 export const refreshTokenSchema = z.object({
