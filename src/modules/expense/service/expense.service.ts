@@ -31,6 +31,7 @@ export class ExpenseService extends BaseService<ExpenseEntity> {
       paidByUserId?: string;
       splitType?: string;
       note?: string;
+      includeInNextSettlement?: boolean;
       participants?: Array<{ userId: string; shareAmount?: number }>;
     } = {}
   ) {
@@ -42,6 +43,7 @@ export class ExpenseService extends BaseService<ExpenseEntity> {
       paidByUserId: options.paidByUserId,
       splitType: options.splitType,
       note: options.note,
+      includeInNextSettlement: options.includeInNextSettlement ?? true,
       status: "pending_confirmations",
     });
 
@@ -74,6 +76,10 @@ export class ExpenseService extends BaseService<ExpenseEntity> {
 
     if (expense.createdByUserId !== userId) {
       throw new Error("Only the expense creator can edit this expense");
+    }
+
+    if (expense.settlementLockedAt) {
+      throw new Error("This expense is locked in an active settlement and cannot be edited");
     }
 
     const hasSubmittedPayment = await expenseParticipantService.hasSubmittedPayment(expenseId);
@@ -110,6 +116,10 @@ export class ExpenseService extends BaseService<ExpenseEntity> {
       throw new Error("Only the expense creator can delete this expense");
     }
 
+    if (expense.settlementLockedAt) {
+      throw new Error("This expense is locked in an active settlement and cannot be deleted");
+    }
+
     const hasSubmittedPayment = await expenseParticipantService.hasSubmittedPayment(expenseId);
     if (hasSubmittedPayment) {
       throw new Error("This expense can no longer be deleted because a payment has already been submitted");
@@ -119,6 +129,24 @@ export class ExpenseService extends BaseService<ExpenseEntity> {
     await this.deleteById(expenseId);
 
     return { message: "Expense deleted successfully" };
+  }
+
+  async setIncludeInNextSettlement(expenseId: string, userId: string, include: boolean) {
+    const expense = await this.findById(expenseId);
+
+    if (!expense) {
+      throw new Error("Expense not found");
+    }
+
+    if (expense.createdByUserId !== userId) {
+      throw new Error("Only the expense creator can change this");
+    }
+
+    if (expense.settlementLockedAt) {
+      throw new Error("This expense is locked in an active settlement and cannot be changed");
+    }
+
+    return this.updateById(expenseId, { includeInNextSettlement: include });
   }
 }
 

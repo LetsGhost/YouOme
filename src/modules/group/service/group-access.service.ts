@@ -47,6 +47,24 @@ export class GroupAccessService {
     }
   }
 
+  async isOwnerAdminOrModerator(groupId: string, userId: string) {
+    const group = await this.getGroupOrThrow(groupId);
+
+    if (group.createdByUserId === userId) {
+      return true;
+    }
+
+    const membership = await this.getMembership(groupId, userId);
+    return membership ? ["owner", "admin", "moderator"].includes(membership.role) : false;
+  }
+
+  async assertOwnerAdminOrModerator(groupId: string, userId: string) {
+    const allowed = await this.isOwnerAdminOrModerator(groupId, userId);
+    if (!allowed) {
+      throw new Error("Forbidden");
+    }
+  }
+
   async assertMember(groupId: string, userId: string) {
     const group = await this.getGroupOrThrow(groupId);
     if (group.createdByUserId === userId) {

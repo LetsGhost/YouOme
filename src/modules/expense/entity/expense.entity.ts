@@ -32,4 +32,10 @@ export class ExpenseEntity extends BaseModel {
 
   @prop()
   settledAt?: Date;
+
+  @prop({ default: true })
+  includeInNextSettlement!: boolean;
+
+  @prop()
+  settlementLockedAt?: Date;
 }

@@ -15,6 +15,9 @@ export class SettlementEntity extends BaseModel {
   @prop({ required: true })
   amount!: number;
 
+  @prop()
+  settledAmount?: number;
+
   @prop({ default: "pending" })
   status!: string;
 
@@ -29,4 +32,13 @@ export class SettlementEntity extends BaseModel {
 
   @prop()
   expiresAt?: Date;
+
+  @prop()
+  runId?: string;
+
+  @prop({ type: () => [String], default: [] })
+  expenseIds!: string[];
+
+  @prop()
+  completedAt?: Date;
 }

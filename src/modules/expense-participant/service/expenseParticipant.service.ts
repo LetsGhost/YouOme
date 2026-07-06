@@ -143,6 +143,20 @@ export class ExpenseParticipantService extends BaseService<ExpenseParticipantEnt
     const participant = await this.model.findOne({ expenseId, userId });
     return participant?.submissionCount || 0;
   }
+
+  async sumOutstandingShares(expenseIds: string[], userId: string) {
+    const participants = await this.model.find({
+      expenseId: { $in: expenseIds },
+      userId,
+      status: { $ne: "payment-confirmed" },
+    });
+
+    return participants.reduce((sum, participant) => sum + participant.shareAmount, 0);
+  }
+
+  async getStaleSubmitted(olderThan: Date) {
+    return this.model.find({ status: "payment-submitted", submittedAt: { $lte: olderThan } });
+  }
 }
 
 export const expenseParticipantService = new ExpenseParticipantService();

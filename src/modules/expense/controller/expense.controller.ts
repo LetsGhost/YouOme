@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 
 import { BaseController } from "../../common/base/base.controller";
 import { expenseService } from "../service/expense.service";
-import { createExpenseSchema, updateExpenseSchema } from "../schema/expense.schema";
+import { createExpenseSchema, updateExpenseSchema, setIncludeInSettlementSchema } from "../schema/expense.schema";
 import { authenticate } from "../../../middleware/auth.middleware";
 import { AuthRequest } from "../../../middleware/auth.middleware";
 import { expenseParticipantService } from "../../expense-participant/service/expenseParticipant.service";
@@ -25,6 +25,7 @@ class ExpenseController extends BaseController {
     this.rejectPayment = this.rejectPayment.bind(this);
     this.confirmPayment = this.confirmPayment.bind(this);
     this.confirmReceipt = this.confirmReceipt.bind(this);
+    this.setIncludeInSettlement = this.setIncludeInSettlement.bind(this);
   }
 
   protected routes(): void {
@@ -261,6 +262,37 @@ class ExpenseController extends BaseController {
      *         description: Unauthorized
      */
     this.router.post("/:id/confirm-receipt", authenticate, this.confirmReceipt);
+
+    /**
+     * @openapi
+     * /api/expenses/{id}/include-in-settlement:
+     *   patch:
+     *     summary: Toggle whether an expense is swept into the next scheduled settlement (creator only, before it's locked into a run)
+     *     tags: [Expenses]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Expense ID
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/SetIncludeInSettlementDTO'
+     *     responses:
+     *       200:
+     *         description: Expense updated
+     *       400:
+     *         description: Not authorized or expense is locked in an active settlement
+     *       401:
+     *         description: Unauthorized
+     */
+    this.router.patch("/:id/include-in-settlement", authenticate, this.wrap(this.setIncludeInSettlement));
   }
 
   private async create(req: Request, res: Response) {
@@ -274,6 +306,7 @@ class ExpenseController extends BaseController {
         paidByUserId: dto.paidByUserId,
         splitType: dto.splitType,
         note: dto.note,
+        includeInNextSettlement: dto.includeInNextSettlement,
         participants: dto.participants,
       }
     );
@@ -358,6 +391,12 @@ class ExpenseController extends BaseController {
     }
 
     res.json(participant);
+  }
+
+  private async setIncludeInSettlement(req: AuthRequest, res: Response) {
+    const dto = setIncludeInSettlementSchema.parse(req.body);
+    const expense = await expenseService.setIncludeInNextSettlement(req.params.id, req.user!.id, dto.include);
+    res.json(expense);
   }
 
   private async confirmReceipt(req: Request, res: Response) {

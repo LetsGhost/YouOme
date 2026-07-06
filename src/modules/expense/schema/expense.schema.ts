@@ -52,6 +52,10 @@ import { z } from "zod";
  *         note:
  *           type: string
  *           example: Friday team dinner
+ *         includeInNextSettlement:
+ *           type: boolean
+ *           default: true
+ *           example: true
  *         participants:
  *           type: array
  *           items:
@@ -82,6 +86,7 @@ export const createExpenseSchema = z.object({
   paidByUserId: z.string().optional(),
   splitType: z.enum(["equal", "custom", "percentage"]).optional().default("equal"),
   note: z.string().optional(),
+  includeInNextSettlement: z.boolean().optional().default(true),
   participants: z.array(
     z.object({
       userId: z.string().min(1),
@@ -119,6 +124,23 @@ export const updateExpenseSchema = z
   })
   .refine((data) => Object.keys(data).length > 0, { message: "At least one field must be provided" });
 
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     SetIncludeInSettlementDTO:
+ *       type: object
+ *       required:
+ *         - include
+ *       properties:
+ *         include:
+ *           type: boolean
+ */
+export const setIncludeInSettlementSchema = z.object({
+  include: z.boolean(),
+});
+
 export type CreateExpenseDTO = z.infer<typeof createExpenseSchema>;
 export type SubmitPaymentDTO = z.infer<typeof submitPaymentSchema>;
 export type UpdateExpenseDTO = z.infer<typeof updateExpenseSchema>;
+export type SetIncludeInSettlementDTO = z.infer<typeof setIncludeInSettlementSchema>;

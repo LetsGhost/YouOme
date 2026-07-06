@@ -2,6 +2,7 @@ import { logger } from "../logger/logger";
 
 // Import all jobs - they self-register on import
 import "../../user/jobs/auto-register.job";
+import "../../settlement-schedule/jobs/settlement-schedule.job";
 
 export async function registerScheduledJobs(): Promise<void> {
   const log = logger.child({ label: "scheduler-registry" });
