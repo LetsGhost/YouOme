@@ -1,3 +1,4 @@
+import http from "http";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -13,6 +14,7 @@ import { registerControllers } from "../modules/common/registry/controller/regis
 import { registerEventHandlers } from "../modules/common/messaging/event-handler-registry";
 import { registerScheduledJobs } from "../modules/common/scheduler/scheduler-registry";
 import { jobScheduler } from "../modules/common/scheduler/scheduler";
+import { initWebsocketServer } from "../modules/common/websocket/websocket.server";
 import { swaggerSpec } from "../config/swagger";
 import { corsConfig } from "../config/cors";
 import { env } from "../config/env";
@@ -76,5 +78,9 @@ export async function createApp() {
   // Error handler (must be last)
   app.use(errorHandler);
 
-  return app;
+  // Wrap in a raw HTTP server so the websocket server can share the same port
+  const server = http.createServer(app);
+  initWebsocketServer(server);
+
+  return server;
 }

@@ -7,6 +7,7 @@ import { logger } from "./modules/common/logger/logger";
 import { printStartupBanner } from "./modules/common/logger/banner";
 import { jobScheduler } from "./modules/common/scheduler/scheduler";
 import { redisService } from "./modules/redis/service/redis.service";
+import { shutdownWebsocketServer } from "./modules/common/websocket/websocket.server";
 
 const SHUTDOWN_TIMEOUT_MS = 10000;
 
@@ -18,11 +19,11 @@ const SHUTDOWN_TIMEOUT_MS = 10000;
     // Connect to MongoDB
     await connectDatabase(env.MONGO_URI);
 
-    // Create app and connect Redis
-    const app = await createApp();
+    // Create app (and its underlying HTTP server) and connect Redis
+    const server = await createApp();
 
     // Start server
-    const server = app.listen(env.PORT, () => {
+    server.listen(env.PORT, () => {
       logger.info(`Server running on port ${env.PORT}`);
       logger.info(`API Documentation available at http://localhost:${env.PORT}/api-docs`);
     });
@@ -47,6 +48,7 @@ const SHUTDOWN_TIMEOUT_MS = 10000;
 
         try {
           await jobScheduler.stopScheduler();
+          await shutdownWebsocketServer();
           await redisService.disconnect();
           await mongoose.disconnect();
         } catch (shutdownError) {
