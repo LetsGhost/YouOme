@@ -1,3 +1,5 @@
+import { HydratedDocument } from "mongoose";
+
 import { BaseService } from "../../common/base/base.service";
 import { SettlementModel } from "../model/settlement.model";
 import { SettlementEntity } from "../entity/settlement.entity";
@@ -95,15 +97,78 @@ export class SettlementService extends BaseService<SettlementEntity> {
     return this.model.find({ groupId, status: "pending" }).sort({ createdAt: -1 });
   }
 
+  /**
+   * `incoming` only surfaces settlements the debtor has actually confirmed
+   * paying (`senderConfirmedAt` set) - otherwise there's nothing for the
+   * creditor to approve yet. Symmetrically, `outgoing` drops off once the
+   * debtor has confirmed, since the ball is then in the creditor's court.
+   * Those not-yet-actionable settlements aren't dropped though - they land
+   * in `waiting` so the user can still see the expenses/status involved,
+   * just without a button to press.
+   */
   async getForUser(groupId: string, userId: string) {
     const settlements = await this.model
       .find({ groupId, status: "pending", $or: [{ fromUserId: userId }, { toUserId: userId }] })
       .sort({ createdAt: -1 });
 
+    const outgoing = settlements.filter(
+      (settlement) => settlement.fromUserId === userId && !settlement.senderConfirmedAt
+    );
+    const incoming = settlements.filter(
+      (settlement) => settlement.toUserId === userId && Boolean(settlement.senderConfirmedAt)
+    );
+    const waiting = settlements.filter(
+      (settlement) =>
+        (settlement.fromUserId === userId && Boolean(settlement.senderConfirmedAt)) ||
+        (settlement.toUserId === userId && !settlement.senderConfirmedAt)
+    );
+
     return {
-      outgoing: settlements.filter((settlement) => settlement.fromUserId === userId),
-      incoming: settlements.filter((settlement) => settlement.toUserId === userId),
+      outgoing: await Promise.all(outgoing.map((settlement) => this.withExpenseBreakdown(settlement))),
+      incoming: await Promise.all(incoming.map((settlement) => this.withExpenseBreakdown(settlement))),
+      waiting: await Promise.all(waiting.map((settlement) => this.withExpenseBreakdown(settlement))),
     };
+  }
+
+  private async withExpenseBreakdown(settlement: HydratedDocument<SettlementEntity>) {
+    return {
+      ...settlement.toObject(),
+      expenses: await this.getExpenseBreakdown(settlement),
+    };
+  }
+
+  /**
+   * Per-expense detail for a bundled settlement: which expenses were netted
+   * into it and where each one currently stands (the bundled participant's
+   * payment status), not just the settlement's own aggregate amount.
+   */
+  private async getExpenseBreakdown(settlement: HydratedDocument<SettlementEntity>) {
+    const breakdown: Array<{
+      expenseId: string;
+      title: string;
+      totalAmount: number;
+      expenseStatus: string;
+      participantStatus: string;
+      shareAmount: number;
+    }> = [];
+
+    for (const expenseId of settlement.expenseIds) {
+      const expense = await expenseService.findById(expenseId);
+      if (!expense) continue;
+
+      const participant = await this.findBundledParticipant(expenseId, settlement.fromUserId, settlement.toUserId);
+
+      breakdown.push({
+        expenseId,
+        title: expense.title,
+        totalAmount: expense.totalAmount,
+        expenseStatus: expense.status,
+        participantStatus: participant?.status ?? "pending",
+        shareAmount: participant?.shareAmount ?? 0,
+      });
+    }
+
+    return breakdown;
   }
 
   /**
@@ -166,6 +231,7 @@ export class SettlementService extends BaseService<SettlementEntity> {
     }
 
     await this.submitOutstandingParticipants(settlement.expenseIds, settlement.fromUserId, settlement.toUserId);
+    await this.updateById(settlementId, { senderConfirmedAt: new Date() });
     return this.recomputeAmount(settlementId);
   }
 
@@ -212,6 +278,7 @@ export class SettlementService extends BaseService<SettlementEntity> {
     const settlements = await this.model.find({ groupId, status: "pending", fromUserId: userId });
     for (const settlement of settlements) {
       await this.submitOutstandingParticipants(settlement.expenseIds, settlement.fromUserId, settlement.toUserId);
+      await this.updateById(settlement._id.toString(), { senderConfirmedAt: new Date() });
       await this.recomputeAmount(settlement._id.toString());
     }
     return this.getForUser(groupId, userId);
