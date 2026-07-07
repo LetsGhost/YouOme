@@ -3,6 +3,9 @@ import "dotenv/config";
 export const env = {
   APP_NAME: process.env.APP_NAME || "YouOme Backend",
   PORT: Number(process.env.PORT) || 3000,
+  // Public frontend origin, used to build verification/reset links (e.g. https://app.youome.de).
+  // Also consumed directly by infra/docker-compose.prod.yml for compose ${VAR} substitution.
+  APP_URL: process.env.APP_URL || "http://localhost:5173",
   MONGO_URI: process.env.MONGO_URI!,
   NODE_ENV: process.env.NODE_ENV || "development",
   JWT_SECRET: process.env.JWT_SECRET!,
@@ -37,4 +40,9 @@ export const env = {
   GARAGE_BUCKET: process.env.GARAGE_BUCKET || "avatars",
   GARAGE_ACCESS_KEY_ID: process.env.GARAGE_ACCESS_KEY_ID || "",
   GARAGE_SECRET_ACCESS_KEY: process.env.GARAGE_SECRET_ACCESS_KEY || "",
+
+  // email-service (standalone Resend wrapper, ../email-service) - shared secret must match
+  // that service's own EMAIL_SERVICE_API_KEY.
+  EMAIL_SERVICE_URL: process.env.EMAIL_SERVICE_URL || "http://localhost:4000",
+  EMAIL_SERVICE_API_KEY: process.env.EMAIL_SERVICE_API_KEY || "",
 };

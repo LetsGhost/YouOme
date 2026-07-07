@@ -54,6 +54,8 @@ module.exports = [
     files: ['**/*.ts'],
   },
   {
-    ignores: ['node_modules/**', 'dist/**', 'logs/**', 'eslint.config.js'],
+    // scripts/ holds standalone one-off maintenance scripts run directly via ts-node,
+    // not part of the tsconfig.json "src" program (see scripts/backfill-email-verified.ts).
+    ignores: ['node_modules/**', 'dist/**', 'logs/**', 'eslint.config.js', 'scripts/**'],
   },
 ];

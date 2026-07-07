@@ -16,6 +16,9 @@ export class UserEntity extends BaseModel {
     role!: string;
 
     @prop()
+    emailVerifiedAt?: Date;
+
+    @prop()
     suspendedAt?: Date;
 
     @prop()

@@ -92,6 +92,21 @@ export class RedisService {
     await this.client.del(key);
   }
 
+  async getDel<T>(key: string): Promise<T | null> {
+    if (!this.client || !this.isConnected) {
+      throw new Error("Redis not connected");
+    }
+
+    const value = await this.client.getDel(key);
+    if (!value) return null;
+
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return value as unknown as T;
+    }
+  }
+
   async keys(pattern: string): Promise<string[]> {
     if (!this.client || !this.isConnected) {
       throw new Error("Redis not connected");

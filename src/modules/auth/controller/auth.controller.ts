@@ -8,11 +8,13 @@ import {
   registerSchema,
   updateProfileSchema,
   changePasswordSchema,
+  verifyEmailSchema,
+  resendVerificationSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from "../schema/auth.schema";
 import { authenticate, AuthRequest } from "../../../middleware/auth.middleware";
 import { userService } from "../../user/service/user.service";
-import { signAccessToken, signRefreshToken } from "../../common/auth/jwt";
-import { isSystemAdminEmail } from "../../../utils/auth/system-admin.utils";
 
 /**
  * @openapi
@@ -30,6 +32,10 @@ class AuthController extends BaseController {
     this.deleteCurrentUser = this.deleteCurrentUser.bind(this);
     this.updateProfile = this.updateProfile.bind(this);
     this.changePassword = this.changePassword.bind(this);
+    this.verifyEmail = this.verifyEmail.bind(this);
+    this.resendVerification = this.resendVerification.bind(this);
+    this.forgotPassword = this.forgotPassword.bind(this);
+    this.resetPassword = this.resetPassword.bind(this);
   }
 
   protected routes(): void {
@@ -57,7 +63,7 @@ class AuthController extends BaseController {
      * @openapi
       * /api/auth/register:
      *   post:
-     *     summary: Register a new user and log them in
+     *     summary: Register a new user (requires email verification before login)
      *     tags: [Auth]
      *     requestBody:
      *       required: true
@@ -67,11 +73,87 @@ class AuthController extends BaseController {
      *             $ref: '#/components/schemas/CreateUserDTO'
      *     responses:
      *       201:
-     *         description: User created
+     *         description: Registration received, verification email sent
      *       400:
      *         description: Bad request
      */
     this.router.post("/register", this.wrap(this.register));
+
+    /**
+     * @openapi
+     * /api/auth/verify-email:
+     *   post:
+     *     summary: Verify a user's email address using the token from the verification email
+     *     tags: [Auth]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/VerifyEmailDTO'
+     *     responses:
+     *       200:
+     *         description: Email verified successfully
+     *       400:
+     *         description: Invalid or expired verification link
+     */
+    this.router.post("/verify-email", this.wrap(this.verifyEmail));
+
+    /**
+     * @openapi
+     * /api/auth/resend-verification:
+     *   post:
+     *     summary: Resend the email verification link
+     *     tags: [Auth]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/ResendVerificationDTO'
+     *     responses:
+     *       200:
+     *         description: Always returns a generic success message
+     */
+    this.router.post("/resend-verification", this.wrap(this.resendVerification));
+
+    /**
+     * @openapi
+     * /api/auth/forgot-password:
+     *   post:
+     *     summary: Request a password reset link
+     *     tags: [Auth]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/ForgotPasswordDTO'
+     *     responses:
+     *       200:
+     *         description: Always returns a generic success message
+     */
+    this.router.post("/forgot-password", this.wrap(this.forgotPassword));
+
+    /**
+     * @openapi
+     * /api/auth/reset-password:
+     *   post:
+     *     summary: Reset a password using the token from the reset email
+     *     tags: [Auth]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             $ref: '#/components/schemas/ResetPasswordDTO'
+     *     responses:
+     *       200:
+     *         description: Password reset successfully
+     *       400:
+     *         description: Invalid or expired reset link
+     */
+    this.router.post("/reset-password", this.wrap(this.resetPassword));
 
     /**
      * @openapi
@@ -245,22 +327,39 @@ class AuthController extends BaseController {
     const dto = registerSchema.parse(req.body);
 
     const user = await userService.createUser(dto.email, dto.password, dto.name);
-    const payload = { sub: user._id.toString(), role: user.role };
 
     res.status(201).json({
-      message: "Registration completed successfully.",
-      user: {
-        id: user._id.toString(),
-        email: user.email,
-        name: user.name,
-        role: isSystemAdminEmail(user.email) ? "admin" : user.role,
-        avatarUrl: null,
-        bio: null,
-        createdAt: user.createdAt,
-      },
-      accessToken: signAccessToken(payload),
-      refreshToken: signRefreshToken(payload),
+      message: "Registration received. Check your email for a verification link.",
+      email: user.email,
     });
+  }
+
+  private async verifyEmail(req: Request, res: Response) {
+    const dto = verifyEmailSchema.parse(req.body);
+    const result = await authService.verifyEmail(dto.token);
+
+    res.json(result);
+  }
+
+  private async resendVerification(req: Request, res: Response) {
+    const dto = resendVerificationSchema.parse(req.body);
+    const result = await authService.resendVerification(dto.email);
+
+    res.json(result);
+  }
+
+  private async forgotPassword(req: Request, res: Response) {
+    const dto = forgotPasswordSchema.parse(req.body);
+    const result = await authService.forgotPassword(dto.email);
+
+    res.json(result);
+  }
+
+  private async resetPassword(req: Request, res: Response) {
+    const dto = resetPasswordSchema.parse(req.body);
+    const result = await authService.resetPassword(dto.token, dto.newPassword);
+
+    res.json(result);
   }
 }
 
